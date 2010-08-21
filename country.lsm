@@ -1,0 +1,13 @@
+Begin3
+Title:          Country.sys
+Version:        1.1.2.6
+Entered-date:   2009-04-06
+Description:    Kernel NLS codepage file
+Keywords:       NLS country
+Author:         Eduardo Casino
+Maintained-by:  Eduardo Casino
+Primary-site:   http://eduardocasino.es/freedos/country
+Original-site:  http://www.fdos.org/kernel
+Platforms:      dos (MS country.sys compatible)
+Copying-policy: GPL
+End
