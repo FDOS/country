@@ -24,7 +24,7 @@
 ; 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ; or go to http://www.gnu.org/licenses/gpl.html
 
-; $Id: country.asm,v 1.1 2010-08-21 14:41:34 perditionc Exp $
+; $Id: country.asm 1637 2011-06-27 01:05:22Z perditionc $
 
 ; This COUNTRY.SYS is compatible with COUNTRY.SYS
 ; of MS-DOS, PC-DOS, PTS-DOS, OS/2, Win9x, WinNT
@@ -3383,7 +3383,7 @@ db 221, 217, 218, 219, 220, 221, 224, 223
 db 224, 226, 226, 228, 228, 230, 230, 232
 db 232, 234, 234, 236, 236, 238, 238, 239
 db 240, 242, 242, 244, 244, 246, 246, 248
-db 248, 259, 250, 252, 252, 253, 254, 255
+db 248, 250, 250, 252, 252, 253, 254, 255
 
 ucase_872 equ ucase_855
 
