@@ -272,16 +272,16 @@ __ua_848 dw 12,380,848,0,0
 	 dd _ua_848
 __ua_1125 dw 12,380,1125,0,0
 	 dd _ua_1125
-__sr_855 dw 12, 381,855,0,0 ; Serbia and Montenegro, Serbian, Cyrillic
-	 dd _sr_855
-__sr_872 dw 12, 381,872,0,0
-	 dd _sr_872
-__sr_852 dw 12, 381,852,0,0 ; Serbia and Montenegro, Serbian, Latin
-	 dd _sr_852
-__sr_850 dw 12, 381,850,0,0
-	 dd _sr_850
-__sr_858 dw 12, 381,858,0,0
-	 dd _sr_858
+__rs_855 dw 12, 381,855,0,0 ; Serbia, Cyrillic
+	 dd _rs_855
+__rs_872 dw 12, 381,872,0,0
+	 dd _rs_872
+__rs_852 dw 12, 381,852,0,0 ; Serbia, Latin
+	 dd _rs_852
+__rs_850 dw 12, 381,850,0,0
+	 dd _rs_850
+__rs_858 dw 12, 381,858,0,0
+	 dd _rs_858
 __hr_852 dw 12, 384,852,0,0 ; Croatia, Croatian
 	 dd _hr_852
 __hr_850 dw 12, 384,850,0,0
@@ -301,9 +301,9 @@ __ba_850 dw 12, 387,850,0,0
 __ba_858 dw 12, 387,858,0,0
 	 dd _ba_858
 __ba_855 dw 12, 387,855,0,0 ; Bosnia Herzegovina, Cyrillic
-	 dd _sr_855
+	 dd _rs_855
 __ba_872 dw 12, 387,872,0,0
-	 dd _sr_872
+	 dd _rs_872
 __mk_855 dw 12, 389,855,0,0 ; Macedonia
 	 dd _mk_855
 __mk_872 dw 12, 389,872,0,0
@@ -2196,9 +2196,9 @@ _ua_1125 dw 8
 	  dd dbcs_empty
 	dw 6,35
 	  dd ua_yn_1125
-_sr_852 dw 7
+_rs_852 dw 7
 	dw 6,1
-	  dd sr_852
+	  dd rs_852
 	dw 6,2
 	  dd ucase_852
 	dw 6,4
@@ -2211,9 +2211,9 @@ _sr_852 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd sh_yn
-_sr_855 dw 7
+_rs_855 dw 7
 	dw 6,1
-	  dd sr_855
+	  dd rs_855
 	dw 6,2
 	  dd ucase_855
 	dw 6,4
@@ -2226,9 +2226,9 @@ _sr_855 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd sh_yn_855
-_sr_872 dw 7
+_rs_872 dw 7
 	dw 6,1
-	  dd sr_872
+	  dd rs_872
 	dw 6,2
 	  dd ucase_872
 	dw 6,4
@@ -2241,9 +2241,9 @@ _sr_872 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd sh_yn_872
-_sr_850 dw 7
+_rs_850 dw 7
 	dw 6,1
-	  dd sr_850
+	  dd rs_850
 	dw 6,2
 	  dd ucase_850
 	dw 6,4
@@ -2256,9 +2256,9 @@ _sr_850 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd sh_yn
-_sr_858 dw 7
+_rs_858 dw 7
 	dw 6,1
-	  dd sr_858
+	  dd rs_858
 	dw 6,2
 	  dd ucase_858
 	dw 6,4
@@ -3182,11 +3182,11 @@ by_850 cnf 375,850,DMY,"B","Y","R",0,0," ",",",".",",",3,2,_24; Belarus
 by_858 cnf 375,858,DMY,"B","Y","R",0,0," ",",",".",",",3,2,_24; Belarus
 ua_848 cnf 380,848,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24;Ukraine Oleg
 ua_1125 cnf 380,1125,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24; Ukraine
-sr_855 cnf 381,855,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
-sr_872 cnf 381,872,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
-sr_852 cnf 381,852,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
-sr_850 cnf 381,850,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
-sr_858 cnf 381,858,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
+rs_855 cnf 381,855,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
+rs_872 cnf 381,872,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
+rs_852 cnf 381,852,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
+rs_850 cnf 381,850,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
+rs_858 cnf 381,858,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
 hr_852 cnf 384,852,DMY,"k","n",  0,0,0,".",",",".",".",3,2,_24; Croatia
 hr_850 cnf 384,850,DMY,"k","n",  0,0,0,".",",",".",".",3,2,_24; Croatia
 hr_858 cnf 384,858,DMY,"k","n",  0,0,0,".",",",".",".",3,2,_24; Croatia
