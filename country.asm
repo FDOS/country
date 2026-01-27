@@ -41,7 +41,7 @@
 
 db 0FFh,"COUNTRY",0,0,0,0,0,0,0,0,1,0,1 ; reserved and undocumented values
 dd  ent	 ; first entry
-ent dw 171; number of entries - don't forget to update when adding a new country
+ent dw 174; number of entries - don't forget to update when adding a new country
 
 ; entries
 ; (size, country, codepage, reserved(2), offset)
@@ -148,12 +148,6 @@ __ch_850 dw 12, 41,850,0,0
 	 dd _ch_850
 __ch_437 dw 12, 41,437,0,0
 	 dd _ch_437
-__cz_852 dw 12, 42,852,0,0
-	 dd _cz_852
-__cz_850 dw 12, 42,850,0,0
-	 dd _cz_850
-__cz_858 dw 12, 42,858,0,0
-	 dd _cz_858
 __at_858 dw 12, 43,858,0,0
 	 dd _at_858
 __at_850 dw 12, 43,850,0,0
@@ -318,6 +312,18 @@ __mk_850 dw 12, 389,850,0,0
 	 dd _mk_850
 __mk_858 dw 12, 389,858,0,0
 	 dd _mk_858
+__cz_852 dw 12, 420,852,0,0
+	 dd _cz_852
+__cz_850 dw 12, 420,850,0,0
+	 dd _cz_850
+__cz_858 dw 12, 420,858,0,0
+	 dd _cz_858
+__sk_852 dw 12, 421,852,0,0
+	 dd _cz_852
+__sk_850 dw 12, 421,850,0,0
+	 dd _cz_850
+__sk_858 dw 12, 421,858,0,0
+	 dd _cz_858
 __me_858 dw 12,785,858,0,0
 	 dd _me_858
 __me_850 dw 12,785,850,0,0
@@ -1197,6 +1203,51 @@ _cz_858 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd cz_yn
+_sk_852 dw 7
+	dw 6,1
+	  dd sk_852
+	dw 6,2
+	  dd ucase_852
+	dw 6,4
+	  dd ucase_852
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd sk_collate_852
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd sk_yn
+_sk_850 dw 7
+	dw 6,1
+	  dd sk_850
+	dw 6,2
+	  dd ucase_850
+	dw 6,4
+	  dd ucase_850
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd sk_collate_850
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd sk_yn
+_sk_858 dw 7
+	dw 6,1
+	  dd sk_858
+	dw 6,2
+	  dd ucase_858
+	dw 6,4
+	  dd ucase_858
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd sk_collate_858
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd sk_yn
 _at_850 dw 7
 	dw 6,1
 	  dd at_850
@@ -3069,9 +3120,6 @@ ro_858 cnf  40,858,YMD,"L","e","i",0,0,".",",","-",":",0,2,_24; Romania
 ch_850 cnf  41,850,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24; Switzerland
 ch_858 cnf  41,858,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24; Switzerland
 ch_437 cnf  41,437,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24; Switzerland
-cz_852 cnf  42,852,DMY,"K","C","s",0,0,".",",","-",":",2,2,_24; Czechoslovakia
-cz_850 cnf  42,850,DMY,"K","C","s",0,0,".",",","-",":",2,2,_24; Czechoslovakia
-cz_858 cnf  42,858,DMY,"K","C","s",0,0,".",",","-",":",2,2,_24; Czechoslovakia
 at_850 cnf  43,850,DMY,"E","U","R",0,0,".",",",".",".",0,2,_24; Austria
 at_858 cnf  43,858,DMY,0D5h,   0,0,0,0,".",",",".",".",0,2,_24; Austria
 at_437 cnf  43,437,DMY,"E","U","R",0,0,".",",",".",".",0,2,_24; Austria
@@ -3154,6 +3202,12 @@ mk_855 cnf 389,855,DMY,0A7h,0A8h,0D4h,0,0,".",",",".",":",3,2,_24; Macedonia
 mk_872 cnf 389,872,DMY,0A7h,0A8h,0D4h,0,0,".",",",".",":",3,2,_24; Macedonia
 mk_850 cnf 389,850,DMY,"D","e","n",0,0,".",",",".",":",3,2,_24; Macedonia
 mk_858 cnf 389,858,DMY,"D","e","n",0,0,".",",",".",":",3,2,_24; Macedonia
+cz_852 cnf 420,852,DMY,"K","C","s",0,0,".",",","-",":",2,2,_24; Czech Republic
+cz_850 cnf 420,850,DMY,"K","C","s",0,0,".",",","-",":",2,2,_24; Czech Republic
+cz_858 cnf 420,858,DMY,"K","C","s",0,0,".",",","-",":",2,2,_24; Czech Republic
+sk_852 cnf 421,852,DMY,"E","U","R",0,0,".",",","-",":",2,2,_24; Slovakia
+sk_850 cnf 421,850,DMY,"E","U","R",0,0,".",",","-",":",2,2,_24; Slovakia
+sk_858 cnf 421,858,DMY,0D5h,0,  0, 0,0,".",",","-",":",2,2,_24; Slovakia
 me_864 cnf 785,864,DMY,0A4h,   0,0,0,0,".",",","/",":",1,3,_12; Middle East
 me_850 cnf 785,850,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
 me_858 cnf 785,858,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
@@ -4501,6 +4555,10 @@ cz_collate_852 equ ru_collate_852	; Czech, CP852
 cz_collate_850 equ pl_collate_850	; Czech, CP850
 cz_collate_858 equ gr_collate_858	; Czech, CP858
 
+sk_collate_852 equ cz_collate_852	; Slovakia, CP852
+sk_collate_850 equ cz_collate_850	; Slovakia, CP850
+sk_collate_858 equ cz_collate_858	; Slovakia, CP858
+
 se_collate_850 db 0FFh,"COLLATE"	; Swedish, CP850
 	       dw 256
 db   0,   1,   2,   3,   4,   5,   6,   7
@@ -5052,6 +5110,8 @@ ro_yn equ ru_yn		; Romanian
 cz_yn db 0FFh,"YESNO  "
       dw 4
       db 'A','0','N',0	; Czech
+
+sk_yn equ cz_yn		; Slovakia
 
 pl_yn db 0FFh,"YESNO  "
       dw 4
