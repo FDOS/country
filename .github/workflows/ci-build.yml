@@ -25,7 +25,12 @@ jobs:
         sudo add-apt-repository ppa:tkchia/build-ia16
         sudo apt update
         sudo apt install gcc-ia16-elf libi86-ia16-elf nasm upx
+        sudo apt install python3-iso3166 python3-phonenumbers
 
     - name: Build
       run: |
         make clean all
+
+    - name: Validate
+      run: |
+        ./ci_validate.py
