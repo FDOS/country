@@ -41,7 +41,7 @@
 
 db 0FFh,"COUNTRY",0,0,0,0,0,0,0,0,1,0,1 ; reserved and undocumented values
 dd  ent	 ; first entry
-ent dw 171; number of entries - don't forget to update when adding a new country
+ent dw 186; number of entries - don't forget to update when adding a new country
 
 ; entries
 ; (size, country, codepage, reserved(2), offset)
@@ -330,6 +330,42 @@ __il_850 dw 12,972,850,0,0
 	 dd _il_850
 __il_862 dw 12,972,862,0,0
 	 dd _il_862
+; --- Iceland (Country 354, ISO: IS, Language: Icelandic/is) ---
+__is_861 dw 12, 354,861,0,0
+	 dd _is_861
+__is_850 dw 12, 354,850,0,0
+	 dd _is_850
+__is_858 dw 12, 354,858,0,0
+	 dd _is_858
+; --- Estonia (Country 372, ISO: EE, Language: Estonian/et) ---
+__ee_775 dw 12, 372,775,0,0
+	 dd _ee_775
+__ee_850 dw 12, 372,850,0,0
+	 dd _ee_850
+__ee_858 dw 12, 372,858,0,0
+	 dd _ee_858
+; --- Latvia (Country 371, ISO: LV, Language: Latvian/lv) ---
+__lv_775 dw 12, 371,775,0,0
+	 dd _lv_775
+__lv_850 dw 12, 371,850,0,0
+	 dd _lv_850
+__lv_858 dw 12, 371,858,0,0
+	 dd _lv_858
+; --- Lithuania (Country 370, ISO: LT, Language: Lithuanian/lt) ---
+__lt_775 dw 12, 370,775,0,0
+	 dd _lt_775
+__lt_850 dw 12, 370,850,0,0
+	 dd _lt_850
+__lt_858 dw 12, 370,858,0,0
+	 dd _lt_858
+; --- Slovakia (Country 421, ISO: SK, Language: Slovak/sk) ---
+__sk_852 dw 12, 421,852,0,0
+	 dd _sk_852
+__sk_850 dw 12, 421,850,0,0
+	 dd _sk_850
+__sk_858 dw 12, 421,858,0,0
+	 dd _sk_858
+; --- omitted: Brazil-PB, Esperanto(no country), slovenian, swedish, ukrainian
 
 ; Countries 4x000 - 4x999 (Multilingual)
 ;
@@ -397,6 +433,14 @@ __it_CH_437 dw 12, 42041,437,0,0
 ; subfunction headers
 ; (count, size, id, offset)
 ; add ofher subfunctions after each one
+; - Subfunction 1: Country information (date/time/currency format)
+; - Subfunction 2: Uppercase table
+; - Subfunction 3: Lowercase table (if different from uppercase)
+; - Subfunction 4: Filename uppercase table
+; - Subfunction 5: Filename character table
+; - Subfunction 6: Collating sequence table (sorting order)
+; - Subfunction 7: DBCS (Double Byte Character Set) table
+; - Subfunction 35: Yes/No prompt characters
 
 _us_437 dw 7
 	dw 6,1
@@ -2985,6 +3029,231 @@ _it_CH_437 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd it_yn
+_is_861 dw 7
+	dw 6,1
+	  dd is_861
+	dw 6,2
+	  dd ucase_861
+	dw 6,4
+	  dd ucase_861
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd is_collate_861
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd is_yn
+_is_850 dw 7
+	dw 6,1
+	  dd is_850
+	dw 6,2
+	  dd ucase_850
+	dw 6,4
+	  dd ucase_850
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd is_collate_850
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd is_yn
+_is_858 dw 7
+	dw 6,1
+	  dd is_858
+	dw 6,2
+	  dd ucase_858
+	dw 6,4
+	  dd ucase_858
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd is_collate_858
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd is_yn
+_ee_775 dw 7
+	dw 6,1
+	  dd ee_775
+	dw 6,2
+	  dd ucase_775
+	dw 6,4
+	  dd ucase_775
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd ee_collate_775
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd ee_yn
+_ee_850 dw 7
+	dw 6,1
+	  dd ee_850
+	dw 6,2
+	  dd ucase_850
+	dw 6,4
+	  dd ucase_850
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd ee_collate_850
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd ee_yn
+_ee_858 dw 7
+	dw 6,1
+	  dd ee_858
+	dw 6,2
+	  dd ucase_858
+	dw 6,4
+	  dd ucase_858
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd ee_collate_858
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd ee_yn
+_lv_775 dw 7
+	dw 6,1
+	  dd lv_775
+	dw 6,2
+	  dd ucase_775
+	dw 6,4
+	  dd ucase_775
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd lv_collate_775
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd lv_yn
+_lv_850 dw 7
+	dw 6,1
+	  dd lv_850
+	dw 6,2
+	  dd ucase_850
+	dw 6,4
+	  dd ucase_850
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd lv_collate_850
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd lv_yn
+_lv_858 dw 7
+	dw 6,1
+	  dd lv_858
+	dw 6,2
+	  dd ucase_858
+	dw 6,4
+	  dd ucase_858
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd lv_collate_858
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd lv_yn
+_lt_775 dw 7
+	dw 6,1
+	  dd lt_775
+	dw 6,2
+	  dd ucase_775
+	dw 6,4
+	  dd ucase_775
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd lt_collate_775
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd lt_yn
+_lt_850 dw 7
+	dw 6,1
+	  dd lt_850
+	dw 6,2
+	  dd ucase_850
+	dw 6,4
+	  dd ucase_850
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd lt_collate_850
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd lt_yn
+_lt_858 dw 7
+	dw 6,1
+	  dd lt_858
+	dw 6,2
+	  dd ucase_858
+	dw 6,4
+	  dd ucase_858
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd lt_collate_858
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd lt_yn
+_sk_852 dw 7
+	dw 6,1
+	  dd sk_852
+	dw 6,2
+	  dd ucase_852
+	dw 6,4
+	  dd ucase_852
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd sk_collate_852
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd sk_yn
+_sk_850 dw 7
+	dw 6,1
+	  dd sk_850
+	dw 6,2
+	  dd ucase_850
+	dw 6,4
+	  dd ucase_850
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd sk_collate_850
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd sk_yn
+_sk_858 dw 7
+	dw 6,1
+	  dd sk_858
+	dw 6,2
+	  dd ucase_858
+	dw 6,4
+	  dd ucase_858
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd sk_collate_858
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd sk_yn
 
 %define MDY 0 ; month/day/year
 %define DMY 1 ; day/month/year
@@ -3116,6 +3385,9 @@ in_437 cnf  91,437,DMY,"R","s",	 0,0,0,".",",","/",":",0,2,_24; India
 pt_860 cnf 351,860,DMY,"E","U","R",0,0,".",",","-",":",0,2,_24; Portugal
 pt_850 cnf 351,850,DMY,"E","U","R",0,0,".",",","-",":",0,2,_24; Portugal
 pt_858 cnf 351,858,DMY,0D5h,   0,0,0,0,".",",","-",":",0,2,_24; Portugal
+is_861 cnf 354,861,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
+is_850 cnf 354,850,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
+is_858 cnf 354,858,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
 fi_850 cnf 358,850,DMY,"E","U","R",0,0," ",",",".",".",3,2,_24; Finland	   Wolf
 fi_858 cnf 358,858,DMY,0D5h,   0,0,0,0," ",",",".",".",3,2,_24; Finland
 fi_437 cnf 358,437,DMY,"E","U","R",0,0," ",",",".",".",3,2,_24;
@@ -3128,6 +3400,15 @@ bg_808 cnf 359,808,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria
 bg_849 cnf 359,849,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria
 bg_1131 cnf 359,1131,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria
 bg_30033 cnf 359,30033,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria  RDPK7
+ee_775 cnf 372,775,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24; Estonia
+ee_850 cnf 372,850,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
+ee_858 cnf 372,858,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
+lv_775 cnf 371,775,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24; Latvia
+lv_850 cnf 371,850,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
+lv_858 cnf 371,858,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
+lt_775 cnf 370,775,YMD,"E","U","R",0,0," ",",","-",":",3,2,_24; Lithuania
+lt_850 cnf 370,850,YMD,"E","U","R",0,0," ",",","-",":",3,2,_24;
+lt_858 cnf 370,858,YMD,"E","U","R",0,0," ",",","-",":",3,2,_24;
 by_849 cnf 375,849,DMY,0E0h,0E3h,0A1h,".",0," ",",",".",":",3,2,_24;Belarus
 by_1131 cnf 375,1131,DMY,0E0h,0E3h,0A1h,".",0," ",",",".",":",3,2,_24; Belarus
 by_850 cnf 375,850,DMY,"B","Y","R",0,0," ",",",".",",",3,2,_24; Belarus
@@ -3154,6 +3435,9 @@ mk_855 cnf 389,855,DMY,0A7h,0A8h,0D4h,0,0,".",",",".",":",3,2,_24; Macedonia
 mk_872 cnf 389,872,DMY,0A7h,0A8h,0D4h,0,0,".",",",".",":",3,2,_24; Macedonia
 mk_850 cnf 389,850,DMY,"D","e","n",0,0,".",",",".",":",3,2,_24; Macedonia
 mk_858 cnf 389,858,DMY,"D","e","n",0,0,".",",",".",":",3,2,_24; Macedonia
+sk_852 cnf 421,852,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24; Slovakia
+sk_850 cnf 421,850,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
+sk_858 cnf 421,858,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
 me_864 cnf 785,864,DMY,0A4h,   0,0,0,0,".",",","/",":",1,3,_12; Middle East
 me_850 cnf 785,850,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
 me_858 cnf 785,858,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
@@ -3528,6 +3812,45 @@ db 240, 241, 242, 243, 244, 245, 246, 247
 db 248, 249, 250, 251, 252, 253, 254, 255
 
 ucase_864 equ ucase_932
+
+; codepage 775 (Baltic Rim) for Estonian, Latvian, and Lithuanian
+ucase_775 db 0FFh,"UCASE  "
+	  dw 128
+db 128, 129, 144, 160, 132, 149, 134, 128
+db 136, 137, 138, 139, 161, 141, 142, 143
+db 144, 145, 146, 147, 148, 149, 150, 151
+db 152, 153, 154, 155, 156, 157, 158, 159
+db 160, 161, 162, 163, 164, 165, 166, 167
+db 168, 169, 170, 171, 172, 173, 174, 175
+db 176, 177, 178, 179, 180, 181, 182, 183
+db 184, 185, 186, 187, 188, 189, 190, 191
+db 192, 193, 194, 195, 196, 197, 198, 199
+db 200, 201, 202, 203, 204, 205, 206, 207
+db 181, 182, 183, 184, 189, 190, 198, 199
+db 207, 209, 210, 211, 212, 213, 214, 215
+db 224, 225, 226, 227, 228, 229, 230, 231
+db 232, 233, 234, 235, 236, 237, 238, 239
+db 240, 241, 242, 243, 244, 245, 246, 247
+db 248, 249, 250, 251, 252, 253, 254, 255
+
+ucase_861 db 0FFh,"UCASE  "
+	  dw 128
+db 128, 154, 144, 182, 142, 143, 146, 128
+db 136, 137, 138, 139, 140, 141, 142, 143
+db 144, 146, 146, 147, 153, 149, 150, 151
+db 152, 153, 154, 157, 156, 157, 158, 159
+db 160, 161, 224, 163, 164, 165, 166, 167
+db 168, 169, 170, 171, 172, 173, 174, 175
+db 176, 177, 178, 179, 180, 181, 182, 183
+db 184, 185, 186, 187, 188, 189, 190, 191
+db 192, 193, 194, 195, 196, 197, 198, 199
+db 200, 201, 202, 203, 204, 205, 206, 207
+db 208, 209, 210, 211, 212, 213, 214, 215
+db 216, 217, 218, 219, 220, 221, 222, 223
+db 224, 225, 226, 227, 228, 229, 230, 231
+db 232, 233, 234, 235, 236, 237, 238, 239
+db 240, 241, 242, 243, 244, 245, 246, 247
+db 248, 249, 250, 251, 252, 253, 254, 255
 
 ; Lowercase equivalents of chars 00h to FFh
 ;------------------------------------------------------------------------------
@@ -4924,6 +5247,201 @@ db 200, 202, 202, 202, 201, 208, 254, 255
 me_collate_850 equ en_collate_850
 me_collate_858 equ en_collate_858
 
+; REVIEW NEEDED: Verify diacritical marks and special character ordering
+is_collate_861 db 0FFh,"COLLATE"		; Icelandic, CP861
+	       dw 256
+db   0,   1,   2,   3,   4,   5,   6,   7
+db   8,   9,  10,  11,  12,  13,  14,  15
+db  16,  17,  18,  19,  20,  21,  22,  23
+db  24,  25,  26,  27,  28,  29,  30,  31
+db  32,  33,  34,  35,  36,  37,  38,  39
+db  40,  41,  42,  43,  44,  45,  46,  47
+db  48,  49,  50,  51,  52,  53,  54,  55
+db  56,  57,  58,  59,  60,  61,  62,  63
+db  64,  65,  67,  69,  71,  75,  77,  79
+db  81,  85,  87,  89,  91,  93,  97,  99
+db 101, 103, 105, 107, 109, 111, 113, 115
+db 117, 119, 121, 123, 124, 125, 126, 127
+db  64,  65,  67,  71,  75,  77,  79,  81
+db  85,  87,  89,  91,  93,  97,  99, 101
+db 103, 105, 107, 109, 111, 113, 115, 117
+db 119, 121, 122, 123, 124, 125, 126, 127
+db 128, 129, 130, 131, 132, 133, 134, 135
+db 136, 137,  73, 139, 140,  73, 142, 143
+db 144, 145, 146, 147, 148, 149, 150, 151
+db 152, 153, 154, 155, 156, 157, 158, 159
+db 160, 161, 162, 163, 164, 165, 166, 167
+db 168, 169, 170, 171, 172, 173, 174, 175
+db 176, 177, 178, 179, 180, 181, 182, 183
+db 184, 185, 186, 187, 188, 189, 190, 191
+db 192, 193, 194, 195, 196, 197, 198, 199
+db 200, 201, 202, 203, 204, 205, 206, 207
+db 208, 209, 210, 211, 212, 213, 214, 215
+db 216, 217, 218, 219, 220, 221, 222, 223
+db 224, 225, 226, 227, 228, 229, 230, 231
+db 232, 233, 234, 235, 236, 237, 238, 239
+db 240, 241, 242, 243, 244, 245, 246, 247
+db 248, 249, 250, 251, 252, 253, 254, 255
+
+is_collate_850 equ en_collate_850
+is_collate_858 equ en_collate_858
+
+; REVIEW NEEDED: Verify exact ordering of diacritical variants
+ee_collate_775 db 0FFh,"COLLATE"		; Estonian, CP775
+	       dw 256
+db   0,   1,   2,   3,   4,   5,   6,   7
+db   8,   9,  10,  11,  12,  13,  14,  15
+db  16,  17,  18,  19,  20,  21,  22,  23
+db  24,  25,  26,  27,  28,  29,  30,  31
+db  32,  33,  34,  35,  36,  37,  38,  39
+db  40,  41,  42,  43,  44,  45,  46,  47
+db  48,  49,  50,  51,  52,  53,  54,  55
+db  56,  57,  58,  59,  60,  61,  62,  63
+db  64,  65,  67,  69,  71,  73,  75,  77
+db  79,  81,  83,  85,  87,  89,  91,  93
+db  95,  97,  99, 101, 103, 105, 107, 109
+db 111, 113, 115, 117, 118, 119, 120, 121
+db  64,  65,  67,  69,  71,  73,  75,  77
+db  79,  81,  83,  85,  87,  89,  91,  93
+db  95,  97,  99, 101, 103, 105, 107, 109
+db 111, 113, 115, 116, 118, 119, 120, 121
+db 128, 129, 130, 131, 132, 133, 134, 135
+db 136, 137, 138, 139, 140, 141, 142, 143
+db 144, 145, 146, 147, 148, 149, 150, 151
+db 152, 153, 154, 155, 156, 157, 158, 159
+db 160, 161, 162, 163, 164, 165, 166, 167
+db 168, 169, 170, 171, 172, 173, 174, 175
+db 176, 177, 178, 179, 180, 181, 182, 183
+db 184, 185, 186, 187, 188, 189, 190, 191
+db 192, 193, 194, 195, 196, 197, 198, 199
+db 200, 201, 202, 203, 204, 205, 206, 207
+db 208, 209, 210, 211, 212, 213, 214, 215
+db 216, 217, 218, 219, 220, 221, 222, 223
+db 224, 225, 226, 227, 228, 229, 230, 231
+db 232, 233, 234, 235, 236, 237, 238, 239
+db 240, 241, 242, 243, 244, 245, 246, 247
+db 248, 249, 250, 251, 252, 253, 254, 255
+
+ee_collate_850 equ en_collate_850
+ee_collate_858 equ en_collate_858
+
+; REVIEW NEEDED: Verify exact ordering of diacritical variants
+lv_collate_775 db 0FFh,"COLLATE"		; Latvian, CP775
+	       dw 256
+db   0,   1,   2,   3,   4,   5,   6,   7
+db   8,   9,  10,  11,  12,  13,  14,  15
+db  16,  17,  18,  19,  20,  21,  22,  23
+db  24,  25,  26,  27,  28,  29,  30,  31
+db  32,  33,  34,  35,  36,  37,  38,  39
+db  40,  41,  42,  43,  44,  45,  46,  47
+db  48,  49,  50,  51,  52,  53,  54,  55
+db  56,  57,  58,  59,  60,  61,  62,  63
+db  64,  65,  67,  69,  71,  73,  75,  77
+db  79,  81,  83,  85,  87,  89,  91,  93
+db  95,  97,  99, 101, 103, 105, 107, 109
+db 111, 113, 115, 117, 118, 119, 120, 121
+db  64,  65,  67,  69,  71,  73,  75,  77
+db  79,  81,  83,  85,  87,  89,  91,  93
+db  95,  97,  99, 101, 103, 105, 107, 109
+db 111, 113, 115, 116, 118, 119, 120, 121
+db 128, 129, 130, 131, 132, 133, 134, 135
+db 136, 137, 138, 139, 140, 141, 142, 143
+db 144, 145, 146, 147, 148, 149, 150, 151
+db 152, 153, 154, 155, 156, 157, 158, 159
+db 160, 161, 162, 163, 164, 165, 166, 167
+db 168, 169, 170, 171, 172, 173, 174, 175
+db 176, 177, 178, 179, 180, 181, 182, 183
+db 184, 185, 186, 187, 188, 189, 190, 191
+db 192, 193, 194, 195, 196, 197, 198, 199
+db 200, 201, 202, 203, 204, 205, 206, 207
+db 208, 209, 210, 211, 212, 213, 214, 215
+db 216, 217, 218, 219, 220, 221, 222, 223
+db 224, 225, 226, 227, 228, 229, 230, 231
+db 232, 233, 234, 235, 236, 237, 238, 239
+db 240, 241, 242, 243, 244, 245, 246, 247
+db 248, 249, 250, 251, 252, 253, 254, 255
+
+lv_collate_850 equ en_collate_850
+lv_collate_858 equ en_collate_858
+
+; REVIEW NEEDED: Verify exact ordering of diacritical variants
+lt_collate_775 db 0FFh,"COLLATE"		; Lithuanian, CP775
+	       dw 256
+db   0,   1,   2,   3,   4,   5,   6,   7
+db   8,   9,  10,  11,  12,  13,  14,  15
+db  16,  17,  18,  19,  20,  21,  22,  23
+db  24,  25,  26,  27,  28,  29,  30,  31
+db  32,  33,  34,  35,  36,  37,  38,  39
+db  40,  41,  42,  43,  44,  45,  46,  47
+db  48,  49,  50,  51,  52,  53,  54,  55
+db  56,  57,  58,  59,  60,  61,  62,  63
+db  64,  65,  67,  69,  71,  73,  75,  77
+db  79,  81,  83,  85,  87,  89,  91,  93
+db  95,  97,  99, 101, 103, 105, 107, 109
+db 111, 113, 115, 117, 118, 119, 120, 121
+db  64,  65,  67,  69,  71,  73,  75,  77
+db  79,  81,  83,  85,  87,  89,  91,  93
+db  95,  97,  99, 101, 103, 105, 107, 109
+db 111, 113, 115, 116, 118, 119, 120, 121
+db 128, 129, 130, 131, 132, 133, 134, 135
+db 136, 137, 138, 139, 140, 141, 142, 143
+db 144, 145, 146, 147, 148, 149, 150, 151
+db 152, 153, 154, 155, 156, 157, 158, 159
+db 160, 161, 162, 163, 164, 165, 166, 167
+db 168, 169, 170, 171, 172, 173, 174, 175
+db 176, 177, 178, 179, 180, 181, 182, 183
+db 184, 185, 186, 187, 188, 189, 190, 191
+db 192, 193, 194, 195, 196, 197, 198, 199
+db 200, 201, 202, 203, 204, 205, 206, 207
+db 208, 209, 210, 211, 212, 213, 214, 215
+db 216, 217, 218, 219, 220, 221, 222, 223
+db 224, 225, 226, 227, 228, 229, 230, 231
+db 232, 233, 234, 235, 236, 237, 238, 239
+db 240, 241, 242, 243, 244, 245, 246, 247
+db 248, 249, 250, 251, 252, 253, 254, 255
+
+lt_collate_850 equ en_collate_850
+lt_collate_858 equ en_collate_858
+
+; REVIEW NEEDED: Verify exact ordering of all diacritical variants and digraphs
+sk_collate_852 db 0FFh,"COLLATE"		; Slovak, CP852
+	       dw 256
+db   0,   1,   2,   3,   4,   5,   6,   7
+db   8,   9,  10,  11,  12,  13,  14,  15
+db  16,  17,  18,  19,  20,  21,  22,  23
+db  24,  25,  26,  27,  28,  29,  30,  31
+db  32,  33,  34,  35,  36,  37,  38,  39
+db  40,  41,  42,  43,  44,  45,  46,  47
+db  48,  49,  50,  51,  52,  53,  54,  55
+db  56,  57,  58,  59,  60,  61,  62,  63
+db  64,  65,  67,  69,  71,  73,  75,  77
+db  79,  81,  83,  85,  87,  89,  91,  93
+db  95,  97,  99, 101, 103, 105, 107, 109
+db 111, 113, 115, 117, 118, 119, 120, 121
+db  64,  65,  67,  69,  71,  73,  75,  77
+db  79,  81,  83,  85,  87,  89,  91,  93
+db  95,  97,  99, 101, 103, 105, 107, 109
+db 111, 113, 115, 116, 118, 119, 120, 121
+db 128, 129, 130, 131, 132, 133, 134, 135
+db 136, 137, 138, 139, 140, 141, 142, 143
+db 144, 145, 146, 147, 148, 149, 150, 151
+db 152, 153, 154, 155, 156, 157, 158, 159
+db 160, 161, 162, 163, 164, 165, 166, 167
+db 168, 169, 170, 171, 172, 173, 174, 175
+db 176, 177, 178, 179, 180, 181, 182, 183
+db 184, 185, 186, 187, 188, 189, 190, 191
+db 192, 193, 194, 195, 196, 197, 198, 199
+db 200, 201, 202, 203, 204, 205, 206, 207
+db 208, 209, 210, 211, 212, 213, 214, 215
+db 216, 217, 218, 219, 220, 221, 222, 223
+db 224, 225, 226, 227, 228, 229, 230, 231
+db 232, 233, 234, 235, 236, 237, 238, 239
+db 240, 241, 242, 243, 244, 245, 246, 247
+db 248, 249, 250, 251, 252, 253, 254, 255
+
+sk_collate_850 equ en_collate_850
+sk_collate_858 equ en_collate_858
+
 ; Dual Byte Character Sets
 ;   lead-byte ranges
 ;------------------------------------------------------------------------------
@@ -5104,5 +5622,19 @@ gl_yn equ es_yn		; Gallegan
 eu_yn db 0FFh,"YESNO  "
       dw 4
       db 'B','0','E',0	; Basque
+
+is_yn equ de_yn ; Icelandic, J = Ja (Yes), N = Nei (No)
+
+ee_yn db 0FFh,"YESNO  "
+      dw 4
+      db 'J','0','E',0	; J = Jah (Yes), E = Ei (No)
+
+lv_yn  equ de_yn ; Latvia, J = Ja (Yes), N = Ne (No)
+
+lt_yn equ pl_yn	; Lithuanian, T = Taip (Yes), N = Ne (No)
+
+sk_yn db 0FFh,"YESNO  "
+      dw 4
+      db 'A','0','N',0	; A = Ano (Yes), N = Nie (No)
 
 db "FreeDOS" ; Trailing - as recommended by the Ralf Brown Interrupt List
