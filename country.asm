@@ -160,12 +160,12 @@ __at_850 dw 12, 43,850,0,0
 	 dd _at_850
 __at_437 dw 12, 43,437,0,0
 	 dd _at_437
-__uk_858 dw 12, 44,858,0,0
-	 dd _uk_858
-__uk_850 dw 12, 44,850,0,0
-	 dd _uk_850
-__uk_437 dw 12, 44,437,0,0
-	 dd _uk_437
+__gb_858 dw 12, 44,858,0,0
+	 dd _gb_858
+__gb_850 dw 12, 44,850,0,0
+	 dd _gb_850
+__gb_437 dw 12, 44,437,0,0
+	 dd _gb_437
 __dk_865 dw 12, 45,865,0,0
 	 dd _dk_865
 __dk_850 dw 12, 45,850,0,0
@@ -1286,9 +1286,9 @@ _at_437 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd de_yn
-_uk_850 dw 7
+_gb_850 dw 7
 	dw 6,1
-	  dd uk_850
+	  dd gb_850
 	dw 6,2
 	  dd ucase_850
 	dw 6,4
@@ -1301,9 +1301,9 @@ _uk_850 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd en_yn
-_uk_858 dw 7
+_gb_858 dw 7
 	dw 6,1
-	  dd uk_858
+	  dd gb_858
 	dw 6,2
 	  dd ucase_858
 	dw 6,4
@@ -1316,9 +1316,9 @@ _uk_858 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd en_yn
-_uk_437 dw 7
+_gb_437 dw 7
 	dw 6,1
-	  dd uk_437
+	  dd gb_437
 	dw 6,2
 	  dd ucase_437
 	dw 6,4
@@ -3344,9 +3344,9 @@ cz_858 cnf  42,858,DMY,"K","C","s",0,0,".",",","-",":",2,2,_24; Czechoslovakia
 at_850 cnf  43,850,DMY,"E","U","R",0,0,".",",",".",".",0,2,_24; Austria
 at_858 cnf  43,858,DMY,0D5h,   0,0,0,0,".",",",".",".",0,2,_24; Austria
 at_437 cnf  43,437,DMY,"E","U","R",0,0,".",",",".",".",0,2,_24; Austria
-uk_850 cnf  44,850,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
-uk_858 cnf  44,858,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
-uk_437 cnf  44,437,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
+gb_850 cnf  44,850,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
+gb_858 cnf  44,858,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
+gb_437 cnf  44,437,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
 dk_865 cnf  45,865,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
 dk_850 cnf  45,850,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
 dk_858 cnf  45,858,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
