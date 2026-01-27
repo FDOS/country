@@ -120,16 +120,6 @@ __hu_850 dw 12, 36,850,0,0
 	 dd _hu_850
 __hu_858 dw 12, 36,858,0,0
 	 dd _hu_858
-__yu_852 dw 12, 38,852,0,0
-	 dd _yu_852
-__yu_855 dw 12, 38,855,0,0
-	 dd _yu_855
-__yu_872 dw 12, 38,872,0,0
-	 dd _yu_872
-__yu_858 dw 12, 38,858,0,0
-	 dd _yu_858
-__yu_850 dw 12, 38,850,0,0
-	 dd _yu_850
 __it_858 dw 12, 39,858,0,0
 	 dd _it_858
 __it_850 dw 12, 39,850,0,0
@@ -282,6 +272,16 @@ __rs_850 dw 12, 381,850,0,0
 	 dd _rs_850
 __rs_858 dw 12, 381,858,0,0
 	 dd _rs_858
+__xk_852 dw 12, 383,852,0,0 ; Kosovo (Temporary code)
+	 dd _xk_852
+__xk_855 dw 12, 383,855,0,0
+	 dd _xk_855
+__xk_872 dw 12, 383,872,0,0
+	 dd _xk_872
+__xk_858 dw 12, 383,858,0,0
+	 dd _xk_858
+__xk_850 dw 12, 383,850,0,0
+	 dd _xk_850
 __hr_852 dw 12, 385,852,0,0 ; Croatia
 	 dd _hr_852
 __hr_850 dw 12, 385,850,0,0
@@ -948,9 +948,9 @@ _hu_858 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd hu_yn
-_yu_852 dw 7
+_xk_852 dw 7
 	dw 6,1
-	  dd yu_852
+	  dd xk_852
 	dw 6,2
 	  dd ucase_852
 	dw 6,4
@@ -963,9 +963,9 @@ _yu_852 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd sh_yn
-_yu_855 dw 7
+_xk_855 dw 7
 	dw 6,1
-	  dd yu_855
+	  dd xk_855
 	dw 6,2
 	  dd ucase_855
 	dw 6,4
@@ -978,9 +978,9 @@ _yu_855 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd sh_yn_855
-_yu_872 dw 7
+_xk_872 dw 7
 	dw 6,1
-	  dd yu_872
+	  dd xk_872
 	dw 6,2
 	  dd ucase_872
 	dw 6,4
@@ -993,9 +993,9 @@ _yu_872 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd sh_yn_872
-_yu_850 dw 7
+_xk_850 dw 7
 	dw 6,1
-	  dd yu_850
+	  dd xk_850
 	dw 6,2
 	  dd ucase_850
 	dw 6,4
@@ -1008,9 +1008,9 @@ _yu_850 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd sh_yn
-_yu_858 dw 7
+_xk_858 dw 7
 	dw 6,1
-	  dd yu_858
+	  dd xk_858
 	dw 6,2
 	  dd ucase_858
 	dw 6,4
@@ -3106,11 +3106,6 @@ es_437 cnf  34,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Spain
 hu_852 cnf  36,852,YMD,"F","t",	 0,0,0," ",",",".",":",3,2,_24; Hungary
 hu_850 cnf  36,850,YMD,"F","t",	 0,0,0," ",",",".",":",3,2,_24; Hungary
 hu_858 cnf  36,858,YMD,"F","t",	 0,0,0," ",",",".",":",3,2,_24; Hungary
-yu_852 cnf  38,852,YMD,"D","i","n",0,0,".",",","-",":",2,2,_24; Yugoslavia
-yu_855 cnf  38,855,YMD,0A7h,0B7h,0D4h,0,0,".",",","-",":",2,2,_24; Yugoslavia
-yu_872 cnf  38,872,YMD,0A7h,0B7h,0D4h,0,0,".",",","-",":",2,2,_24; Yugoslavia
-yu_850 cnf  38,850,YMD,"D","i","n",0,0,".",",","-",":",2,2,_24; Yugoslavia
-yu_858 cnf  38,858,YMD,"D","i","n",0,0,".",",","-",":",2,2,_24; Yugoslavia
 it_850 cnf  39,850,DMY,"E","U","R",0,0,".",",","/",".",0,2,_24; Italy
 it_858 cnf  39,858,DMY,0D5h,   0,0,0,0,".",",","/",".",0,2,_24; Italy
 it_437 cnf  39,437,DMY,"E","U","R",0,0,".",",","/",".",0,2,_24; Italy
@@ -3187,6 +3182,11 @@ rs_872 cnf 381,872,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
 rs_852 cnf 381,852,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
 rs_850 cnf 381,850,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
 rs_858 cnf 381,858,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
+xk_852 cnf 383,852,YMD,"E","U","R",0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
+xk_855 cnf 383,855,YMD,"E","U","R",0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
+xk_872 cnf 383,872,YMD,"E","U","R",0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
+xk_850 cnf 383,850,YMD,"E","U","R",0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
+xk_858 cnf 383,858,YMD,0D5h,0,  0, 0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
 hr_852 cnf 385,852,DMY,"E","U","R",0,0,".",",",".",".",3,2,_24; Croatia
 hr_850 cnf 385,850,DMY,"E","U","R",0,0,".",",",".",".",3,2,_24; Croatia
 hr_858 cnf 385,858,DMY,0D5h,0,  0, 0,0,".",",",".",".",3,2,_24; Croatia
