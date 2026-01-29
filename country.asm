@@ -324,12 +324,12 @@ __sk_850 dw 12, 421,850,0,0
 	 dd _cz_850
 __sk_858 dw 12, 421,858,0,0
 	 dd _cz_858
-__me_858 dw 12,785,858,0,0
-	 dd _me_858
-__me_850 dw 12,785,850,0,0
-	 dd _me_850
-__me_864 dw 12,785,864,0,0
-	 dd _me_864
+__xx_858 dw 12,785,858,0,0
+	 dd _xx_858
+__xx_850 dw 12,785,850,0,0
+	 dd _xx_850
+__xx_864 dw 12,785,864,0,0
+	 dd _xx_864
 __il_858 dw 12,972,858,0,0
 	 dd _il_858
 __il_850 dw 12,972,850,0,0
@@ -2496,9 +2496,9 @@ _mk_858 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd mk_yn
-_me_850	dw 7
+_xx_850	dw 7
 	dw 6,1
-	  dd me_850
+	  dd xx_850
 	dw 6,2
 	  dd ucase_850
 	dw 6,4
@@ -2506,14 +2506,14 @@ _me_850	dw 7
 	dw 6,5
 	  dd fchar
 	dw 6,6
-	  dd me_collate_850
+	  dd xx_collate_850
 	dw 6,7
 	  dd dbcs_empty
 	dw 6,35
-	  dd me_yn
-_me_858	dw 7
+	  dd xx_yn
+_xx_858	dw 7
 	dw 6,1
-	  dd me_858
+	  dd xx_858
 	dw 6,2
 	  dd ucase_858
 	dw 6,4
@@ -2521,14 +2521,14 @@ _me_858	dw 7
 	dw 6,5
 	  dd fchar
 	dw 6,6
-	  dd me_collate_858
+	  dd xx_collate_858
 	dw 6,7
 	  dd dbcs_empty
 	dw 6,35
-	  dd me_yn
-_me_864	dw 7
+	  dd xx_yn
+_xx_864	dw 7
 	dw 6,1
-	  dd me_864
+	  dd xx_864
 	dw 6,2
 	  dd ucase_864
 	dw 6,4
@@ -2536,11 +2536,11 @@ _me_864	dw 7
 	dw 6,5
 	  dd fchar
 	dw 6,6
-	  dd me_collate_864
+	  dd xx_collate_864
 	dw 6,7
 	  dd dbcs_empty
 	dw 6,35
-	  dd me_yn_864
+	  dd xx_yn_864
 _il_850	dw 7
 	dw 6,1
 	  dd il_850
@@ -3208,9 +3208,9 @@ cz_858 cnf 420,858,DMY,"K","C","s",0,0,".",",","-",":",2,2,_24; Czech Republic
 sk_852 cnf 421,852,DMY,"E","U","R",0,0,".",",","-",":",2,2,_24; Slovakia
 sk_850 cnf 421,850,DMY,"E","U","R",0,0,".",",","-",":",2,2,_24; Slovakia
 sk_858 cnf 421,858,DMY,0D5h,0,  0, 0,0,".",",","-",":",2,2,_24; Slovakia
-me_864 cnf 785,864,DMY,0A4h,   0,0,0,0,".",",","/",":",1,3,_12; Middle East
-me_850 cnf 785,850,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
-me_858 cnf 785,858,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
+xx_864 cnf 785,864,DMY,0A4h,   0,0,0,0,".",",","/",":",1,3,_12; Middle East
+xx_850 cnf 785,850,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
+xx_858 cnf 785,858,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
 il_862 cnf 972,862,DMY,99h,    0,0,0,0,",","."," ",":",2,2,_24; Israel
 il_850 cnf 972,850,DMY,"N","I","S",0,0,",","."," ",":",2,2,_24; Israel
 il_858 cnf 972,858,DMY,"N","I","S",0,0,",","."," ",":",2,2,_24; Israel
@@ -4944,7 +4944,7 @@ db 248, 249, 250, 251, 252, 253, 254, 255
 il_collate_850 equ en_collate_850
 il_collate_858 equ en_collate_858
 
-me_collate_864 db 0FFh,"COLLATE"		; Arabic, CP864
+xx_collate_864 db 0FFh,"COLLATE"		; Arabic, CP864
 	       dw 256
 db   0,	  1,   2,   3,	 4,   5,   6,	7
 db   8,	  9,  10,  11,	12,  13,  14,  15
@@ -4979,8 +4979,8 @@ db 206, 207, 208, 194, 197, 198, 198, 203
 db 209, 209, 204, 205, 205, 207, 208, 198
 db 200, 202, 202, 202, 201, 208, 254, 255
 
-me_collate_850 equ en_collate_850
-me_collate_858 equ en_collate_858
+xx_collate_850 equ en_collate_850
+xx_collate_858 equ en_collate_858
 
 ; Dual Byte Character Sets
 ;   lead-byte ranges
@@ -5149,11 +5149,11 @@ il_yn_862 db 0FFh,"YESNO  "
       dw 4
       db 8Bh,'0',8Ch,0	; Hebrew, CP862
 
-me_yn db 0FFh,"YESNO  "
+xx_yn db 0FFh,"YESNO  "
       dw 4
       db 'N','0','L',0	; Arabic, latin alphabet (Nam, La)
 
-me_yn_864 db 0FFh,"YESNO  "
+xx_yn_864 db 0FFh,"YESNO  "
       dw 4
       db 0F2h,'0',9Dh,0	; Arabic, CP864
 

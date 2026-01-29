@@ -13,12 +13,16 @@ COUNTRY_ASM = Path('country.asm')
 
 
 def is_alpha2(code):
+    if code.upper() == 'XX':                   # Middle East
+        return True
     return code.upper() in iso3166._by_alpha2
 
 def is_country(code, pnum):
-    if code.upper() == 'CA' and pnum =='2':  # French speaking Canada
+    if code.upper() == 'CA' and pnum =='2':    # French speaking Canada
         return True
-    if code.upper() == 'LA' and pnum =='3':  # Latin America
+    if code.upper() == 'LA' and pnum =='3':    # Latin America
+        return True
+    if code.upper() == 'XX' and pnum =='785':  # Middle East
         return True
     return code.upper() in phonenumbers.region_codes_for_country_code(int(pnum, 10))
 
