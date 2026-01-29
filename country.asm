@@ -41,7 +41,7 @@
 
 db 0FFh,"COUNTRY",0,0,0,0,0,0,0,0,1,0,1 ; reserved and undocumented values
 dd  ent	 ; first entry
-ent dw 174; number of entries - don't forget to update when adding a new country
+ent dw 177; number of entries - don't forget to update when adding a new country
 
 ; entries
 ; (size, country, codepage, reserved(2), offset)
@@ -272,6 +272,12 @@ __rs_850 dw 12, 381,850,0,0
 	 dd _rs_850
 __rs_858 dw 12, 381,858,0,0
 	 dd _rs_858
+__me_852 dw 12, 382,852,0,0 ; Montenegro
+	 dd _si_852
+__me_850 dw 12, 382,850,0,0
+	 dd _si_850
+__me_858 dw 12, 382,858,0,0
+	 dd _si_858
 __xk_852 dw 12, 383,852,0,0 ; Kosovo (Temporary code)
 	 dd _xk_852
 __xk_855 dw 12, 383,855,0,0
@@ -2271,6 +2277,51 @@ _rs_858 dw 7
 	  dd dbcs_empty
 	dw 6,35
 	  dd sh_yn
+_me_852 dw 7
+	dw 6,1
+	  dd me_852
+	dw 6,2
+	  dd ucase_852
+	dw 6,4
+	  dd ucase_852
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd me_collate_852
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd sh_yn
+_me_850 dw 7
+	dw 6,1
+	  dd me_850
+	dw 6,2
+	  dd ucase_850
+	dw 6,4
+	  dd ucase_850
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd me_collate_850
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd sh_yn
+_me_858 dw 7
+	dw 6,1
+	  dd me_858
+	dw 6,2
+	  dd ucase_858
+	dw 6,4
+	  dd ucase_858
+	dw 6,5
+	  dd fchar
+	dw 6,6
+	  dd me_collate_858
+	dw 6,7
+	  dd dbcs_empty
+	dw 6,35
+	  dd sh_yn
 _hr_852 dw 7
 	dw 6,1
 	  dd hr_852
@@ -3182,6 +3233,9 @@ rs_872 cnf 381,872,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
 rs_852 cnf 381,852,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
 rs_850 cnf 381,850,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
 rs_858 cnf 381,858,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
+me_852 cnf 382,852,DMY,"E","U","R",0,0,".",",",".",":",3,2,_24; Montenegro
+me_850 cnf 382,850,DMY,"E","U","R",0,0,".",",",".",":",3,2,_24; Montenegro
+me_858 cnf 382,858,DMY,0D5h,0,  0, 0,0,".",",",".",":",3,2,_24; Montenegro
 xk_852 cnf 383,852,YMD,"E","U","R",0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
 xk_855 cnf 383,855,YMD,"E","U","R",0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
 xk_872 cnf 383,872,YMD,"E","U","R",0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
@@ -4896,6 +4950,10 @@ ua_collate_1125 equ ua_collate_848	; Ukrainian, CP1125
 hr_collate_852 equ ru_collate_852	; Croatian, CP852
 hr_collate_850 equ pl_collate_850	; Croatian, CP850
 hr_collate_858 equ gr_collate_858	; Croatian, CP858
+
+me_collate_852 equ ru_collate_852	; Montenegro, CP852
+me_collate_850 equ pl_collate_850	; Montenegro, CP850
+me_collate_858 equ gr_collate_858	; Montenegro, CP858
 
 si_collate_852 equ ru_collate_852	; Slovenian, CP852
 si_collate_850 equ pl_collate_850	; Slovenian, CP850
