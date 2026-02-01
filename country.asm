@@ -227,9 +227,9 @@ db 0FFh,"COUNTRY",0,0,0,0,0,0,0,0,1,0,1 ; reserved and undocumented values
 dd  ent	 ; first entry
 ; number of entries - don't forget to update when adding a new country
 %ifdef OBSOLETE
-ent dw 237
+ent dw 239
 %else
-ent dw 229
+ent dw 231
 %endif
 
 ; ==============================================================================
@@ -723,6 +723,8 @@ ENTRY by, 375, 858
 ; Ukrainian
 ; ------------------------------------------------------------------------------
 ENTRY ua, 380, 848
+ENTRY ua, 380, 855
+ENTRY ua, 380, 866
 ENTRY ua, 380, 1125
 
 ; ------------------------------------------------------------------------------
@@ -1372,7 +1374,9 @@ SUBFUNC_HEADER by, 858, by_collate_858, by_yn
 ; Ukraine - Country Code 380
 ; ------------------------------------------------------------------------------
 SUBFUNC_HEADER_LCASE ua, 848, lcase_848, ua_collate_848, ua_yn_848
+SUBFUNC_HEADER_LCASE ua, 855, lcase_855, ua_collate_855, ua_yn_848
 SUBFUNC_HEADER_LCASE ua, 1125, lcase_1125, ua_collate_1125, ua_yn_1125
+SUBFUNC_HEADER_LCASE ua, 866, lcase_866, ua_collate_866, ua_yn_1125
 
 ; ------------------------------------------------------------------------------
 ; Serbia - Country Code 381
@@ -1775,7 +1779,9 @@ by_1131 cnf 375,1131,DMY,0E0h,0E3h,0A1h,".",0," ",",",".",":",3,2,_24; Belarus
 by_850 cnf 375,850,DMY,"B","Y","R",0,0," ",",",".",",",3,2,_24; Belarus
 by_858 cnf 375,858,DMY,"B","Y","R",0,0," ",",",".",",",3,2,_24; Belarus
 ua_848 cnf 380,848,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24;Ukraine Oleg
+ua_855 cnf 380,855,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24;Ukraine
 ua_1125 cnf 380,1125,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24; Ukraine
+ua_866 cnf 380,866,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24; Ukraine
 rs_855 cnf 381,855,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
 rs_872 cnf 381,872,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
 rs_852 cnf 381,852,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
@@ -2290,6 +2296,7 @@ db 241, 241, 243, 243, 245, 245, 247, 247
 db 248, 249, 250, 251, 252, 253, 254, 255
 
 lcase_808 equ lcase_866
+lcase_1125 equ lcase_866
 
 lcase_848 db 0FFh,"LCASE  "
           dw 256
@@ -2326,7 +2333,7 @@ db 232, 233, 234, 235, 236, 237, 238, 239
 db 241, 241, 243, 243, 245, 245, 247, 247
 db 249, 249, 250, 251, 252, 253, 254, 255
 
-lcase_1125 equ lcase_848
+lcase_855 equ lcase_848
 
 lcase_849 db 0FFh,"LCASE  "
           dw 256
@@ -3621,6 +3628,8 @@ db 165, 166, 167, 168, 169, 170, 171, 172
 db 135, 135, 132, 132, 136, 136, 141, 141
 db 142, 142, 250, 251, 252, 36,  254, 255
 
+ua_collate_855 equ ua_collate_848
+ua_collate_866 equ ua_collate_848
 ua_collate_1125 equ ua_collate_848	; Ukrainian, CP1125
 
 hr_collate_852 equ ru_collate_852	; Croatian, CP852
