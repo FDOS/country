@@ -225,7 +225,12 @@
 ;
 db 0FFh,"COUNTRY",0,0,0,0,0,0,0,0,1,0,1 ; reserved and undocumented values
 dd  ent	 ; first entry
-ent dw 220; number of entries - don't forget to update when adding a new country
+; number of entries - don't forget to update when adding a new country
+%if OBSOLETE
+ent dw 234
+%else
+ent dw 226
+%endif
 
 ; ==============================================================================
 ; SECTION 2: ENTRY TABLE
