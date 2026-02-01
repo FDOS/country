@@ -4877,10 +4877,6 @@ cz_collate_852 equ ru_collate_852	; Czech, CP852
 cz_collate_850 equ pl_collate_850	; Czech, CP850
 cz_collate_858 equ gr_collate_858	; Czech, CP858
 
-sk_collate_852 equ cz_collate_852	; Slovakia, CP852
-sk_collate_850 equ cz_collate_850	; Slovakia, CP850
-sk_collate_858 equ cz_collate_858	; Slovakia, CP858
-
 se_collate_850 db 0FFh,"COLLATE"	; Swedish, CP850
 	       dw 256
 db   0,   1,   2,   3,   4,   5,   6,   7
@@ -5464,6 +5460,45 @@ db 248, 249, 250, 251, 252, 253, 254, 255
 lt_collate_850 equ en_collate_850
 lt_collate_858 equ en_collate_858
 
+; REVIEW NEEDED: Verify exact ordering of all diacritical variants and digraphs
+sk_collate_852 db 0FFh,"COLLATE"		; Slovak, CP852
+	       dw 256
+db   0,   1,   2,   3,   4,   5,   6,   7
+db   8,   9,  10,  11,  12,  13,  14,  15
+db  16,  17,  18,  19,  20,  21,  22,  23
+db  24,  25,  26,  27,  28,  29,  30,  31
+db  32,  33,  34,  35,  36,  37,  38,  39
+db  40,  41,  42,  43,  44,  45,  46,  47
+db  48,  49,  50,  51,  52,  53,  54,  55
+db  56,  57,  58,  59,  60,  61,  62,  63
+db  64,  65,  67,  69,  71,  73,  75,  77
+db  79,  81,  83,  85,  87,  89,  91,  93
+db  95,  97,  99, 101, 103, 105, 107, 109
+db 111, 113, 115, 117, 118, 119, 120, 121
+db  64,  65,  67,  69,  71,  73,  75,  77
+db  79,  81,  83,  85,  87,  89,  91,  93
+db  95,  97,  99, 101, 103, 105, 107, 109
+db 111, 113, 115, 116, 118, 119, 120, 121
+db 128, 129, 130, 131, 132, 133, 134, 135
+db 136, 137, 138, 139, 140, 141, 142, 143
+db 144, 145, 146, 147, 148, 149, 150, 151
+db 152, 153, 154, 155, 156, 157, 158, 159
+db 160, 161, 162, 163, 164, 165, 166, 167
+db 168, 169, 170, 171, 172, 173, 174, 175
+db 176, 177, 178, 179, 180, 181, 182, 183
+db 184, 185, 186, 187, 188, 189, 190, 191
+db 192, 193, 194, 195, 196, 197, 198, 199
+db 200, 201, 202, 203, 204, 205, 206, 207
+db 208, 209, 210, 211, 212, 213, 214, 215
+db 216, 217, 218, 219, 220, 221, 222, 223
+db 224, 225, 226, 227, 228, 229, 230, 231
+db 232, 233, 234, 235, 236, 237, 238, 239
+db 240, 241, 242, 243, 244, 245, 246, 247
+db 248, 249, 250, 251, 252, 253, 254, 255
+
+sk_collate_850 equ en_collate_850
+sk_collate_858 equ en_collate_858
+
 ; Dual Byte Character Sets
 ;   lead-byte ranges
 ;------------------------------------------------------------------------------
@@ -5593,8 +5628,6 @@ cz_yn db 0FFh,"YESNO  "
       dw 4
       db 'A','0','N',0	; Czech
 
-sk_yn equ cz_yn		; Slovakia
-
 pl_yn db 0FFh,"YESNO  "
       dw 4
       db 'T','0','N',0	; Polish
@@ -5656,5 +5689,9 @@ ee_yn db 0FFh,"YESNO  "
 lv_yn  equ de_yn ; Latvia, J = Ja (Yes), N = Ne (No)
 
 lt_yn equ pl_yn	; Lithuanian, T = Taip (Yes), N = Ne (No)
+
+sk_yn db 0FFh,"YESNO  "
+      dw 4
+      db 'A','0','N',0	; A = Ano (Yes), N = Nie (No)
 
 db "FreeDOS" ; Trailing - as recommended by the Ralf Brown Interrupt List
