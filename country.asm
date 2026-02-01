@@ -4003,7 +4003,7 @@ YESNO yn_gr_737,  8Ch, 0,  8Eh, 0      ; N/O: CP737 (Greek)
 YESNO yn_il_862, 8Bh, 0, 8Ch, 0        ; CP862 (Hebrew)
 
 ; Arabic codepage combinations
-YESNO yn_me_864, 0F2h, 0, 9Dh, 0       ; CP864 (Arabic)
+YESNO yn_xx_864, 0F2h, 0, 9Dh, 0       ; CP864 (Arabic)
 
 ; Korean codepage combinations
 YESNO yn_kr_934, 0BFh, 0B9h, 0BEh, 0C6h ; CP934 (Korean Hangul)
@@ -4122,7 +4122,7 @@ tr_yn equ yn_eh                 ; Turkish: Evet/Hayir
 il_yn_862 equ yn_il_862         ; CP862 Hebrew: (Ken/Lo)
 il_yn equ yn_kl                 ; Latin fallback: K/L
 
-xx_yn_864 equ yn_me_864        ; CP864 Arabic: (Na'am/La)
+xx_yn_864 equ yn_xx_864        ; CP864 Arabic: (Na'am/La)
 xx_yn equ yn_nl                ; Latin fallback: N/L
 
 ; ------------------------------------------------------------------------------
