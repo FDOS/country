@@ -227,9 +227,9 @@ db 0FFh,"COUNTRY",0,0,0,0,0,0,0,0,1,0,1 ; reserved and undocumented values
 dd  ent	 ; first entry
 ; number of entries - don't forget to update when adding a new country
 %ifdef OBSOLETE
-ent dw 234
+ent dw 237
 %else
-ent dw 226
+ent dw 229
 %endif
 
 ; ==============================================================================
@@ -459,6 +459,7 @@ ENTRY dk, 45, 858
 ; Sweden - Country Code 46
 ; Swedish
 ; ------------------------------------------------------------------------------
+ENTRY se, 46, 865
 ENTRY se, 46, 858
 ENTRY se, 46, 850
 ENTRY se, 46, 437
@@ -633,6 +634,7 @@ ENTRY ie, 353, 437
 ; Icelandic
 ; ------------------------------------------------------------------------------
 ENTRY is, 354, 861
+ENTRY is, 354, 865 ; like 861 but with 0x9E/0x9F Thorn lowercase/uppercase
 ENTRY is, 354, 850
 ENTRY is, 354, 858
 
@@ -664,6 +666,7 @@ ENTRY cy, 357, 858
 ; Finland - Country Code 358
 ; Finnish
 ; ------------------------------------------------------------------------------
+ENTRY fi, 358, 865
 ENTRY fi, 358, 858
 ENTRY fi, 358, 850
 ENTRY fi, 358, 437
@@ -1138,6 +1141,7 @@ SUBFUNC_HEADER dk, 858, dk_collate_858, dk_yn
 ; ------------------------------------------------------------------------------
 ; Sweden - Country Code 46
 ; ------------------------------------------------------------------------------
+SUBFUNC_HEADER se, 865, se_collate_865, se_yn
 SUBFUNC_HEADER se, 850, se_collate_850, se_yn
 SUBFUNC_HEADER se, 858, se_collate_858, se_yn
 SUBFUNC_HEADER se, 437, se_collate_437, se_yn
@@ -1289,6 +1293,7 @@ SUBFUNC_HEADER ie, 437, en_collate_437, en_yn
 ; Iceland - Country Code 354
 ; ------------------------------------------------------------------------------
 SUBFUNC_HEADER is, 861, is_collate_861, is_yn
+SUBFUNC_HEADER is, 865, is_collate_865, is_yn
 SUBFUNC_HEADER is, 850, is_collate_850, is_yn
 SUBFUNC_HEADER is, 858, is_collate_858, is_yn
 
@@ -1316,6 +1321,7 @@ SUBFUNC_HEADER cy, 858, en_collate_858, cy_yn
 ; ------------------------------------------------------------------------------
 ; Finland - Country Code 358
 ; ------------------------------------------------------------------------------
+SUBFUNC_HEADER fi, 865, fi_collate_865, fi_yn
 SUBFUNC_HEADER fi, 850, fi_collate_850, fi_yn
 SUBFUNC_HEADER fi, 858, fi_collate_858, fi_yn
 SUBFUNC_HEADER fi, 437, fi_collate_437, fi_yn
@@ -1661,6 +1667,7 @@ gb_437 cnf  44,437,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
 dk_865 cnf  45,865,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
 dk_850 cnf  45,850,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
 dk_858 cnf  45,858,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
+se_865 cnf  46,850,YMD,"K","r",	 0,0,0," ",",","-",".",3,2,_24; Sweden
 se_850 cnf  46,850,YMD,"K","r",	 0,0,0," ",",","-",".",3,2,_24; Sweden
 se_858 cnf  46,858,YMD,"K","r",	 0,0,0," ",",","-",".",3,2,_24; Sweden
 se_437 cnf  46,437,YMD,"K","r",	 0,0,0," ",",","-",".",3,2,_24; Sweden
@@ -1720,6 +1727,7 @@ ie_850 cnf 353,850,DMY,"E","U","R",0,0,",",".","/",":",0,2,_24; Ireland
 ie_858 cnf 353,858,DMY,0D5h,   0,0,0,0,",",".","/",":",0,2,_24; Ireland
 ie_437 cnf 353,437,DMY,"E","U","R",0,0,",",".","/",":",0,2,_24; Ireland
 is_861 cnf 354,861,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
+is_865 cnf 354,861,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
 is_850 cnf 354,850,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
 is_858 cnf 354,858,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
 al_852 cnf 355,852,DMY,"L","e","k",0,0,".",",",".",":",3,2,_24; Albania
@@ -1731,6 +1739,7 @@ mt_437 cnf 356,437,DMY,"E","U","R",0,0,",",".","/",":",0,2,_24; Malta
 cy_869 cnf 357,869,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24; Cyprus
 cy_850 cnf 357,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Cyprus
 cy_858 cnf 357,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24; Cyprus
+fi_865 cnf 358,850,DMY,"E","U","R",0,0," ",",",".",".",3,2,_24; Finland
 fi_850 cnf 358,850,DMY,"E","U","R",0,0," ",",",".",".",3,2,_24; Finland	   Wolf
 fi_858 cnf 358,858,DMY,0D5h,   0,0,0,0," ",",",".",".",3,2,_24; Finland
 fi_437 cnf 358,437,DMY,"E","U","R",0,0," ",",",".",".",3,2,_24;
@@ -3382,6 +3391,9 @@ db 232, 233, 234, 235, 236, 237, 238, 239
 db 240, 241, 242, 243, 244, 245, 246, 247
 db 248, 249, 250, 251,  78,  50, 254, 255
 
+se_collate_865 equ se_collate_437
+
+fi_collate_865 equ se_collate_865	; Finnish, CP865
 fi_collate_850 equ se_collate_850	; Finnish, CP850
 fi_collate_858 equ se_collate_858	; Finnish, CP858
 fi_collate_437 equ se_collate_437	; Finnish, CP437
@@ -3736,6 +3748,7 @@ db 232, 233, 234, 235, 236, 237, 238, 239
 db 240, 241, 242, 243, 244, 245, 246, 247
 db 248, 249, 250, 251, 252, 253, 254, 255
 
+is_collate_865 equ is_collate_861
 is_collate_850 equ en_collate_850
 is_collate_858 equ en_collate_858
 
