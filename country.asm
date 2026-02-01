@@ -226,7 +226,7 @@
 db 0FFh,"COUNTRY",0,0,0,0,0,0,0,0,1,0,1 ; reserved and undocumented values
 dd  ent	 ; first entry
 ; number of entries - don't forget to update when adding a new country
-%if OBSOLETE
+%ifdef OBSOLETE
 ent dw 234
 %else
 ent dw 226
