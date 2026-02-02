@@ -12,7 +12,7 @@ jobs:
   build:
     if: contains(github.event.head_commit.message, '[skip ci]') == false
 
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
 
     steps:
     - name: Checkout repository and submodules
@@ -22,9 +22,8 @@ jobs:
 
     - name: Package install
       run: |
-        sudo add-apt-repository ppa:tkchia/build-ia16
         sudo apt update
-        sudo apt install gcc-ia16-elf libi86-ia16-elf nasm upx
+        sudo apt install nasm
         sudo apt install python3-iso3166 python3-phonenumbers
 
     - name: Build
