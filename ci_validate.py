@@ -35,16 +35,16 @@ def is_country(code, pnum):
 
 def check_master(lines):
     """
-    Validates ENTRY, OLD_ENTRY, and MULTILANG_ENTRY macro invocations in NASM assembly.
+    Validates COUNTRY, OLD_COUNTRY, COUNTRY_LCASE, COUNTRY_DBCS, and COUNTRY_ML macro invocations in NASM assembly.
     
     Checks:
-    - Country codes are valid ISO3166-1-A2
+    - Country codes are valid ISO3166-1-A2 (extracted from country.asm comments)
     - Country codes match international phone prefixes
     - Codepage consistency
     - Entry count matches reported count
     
     Returns:
-        tuple: (errors, num_found, num_reported)
+        tuple: (errors, num_found, num_reported, obsolete_entries_found, obsolete_entries_reported)
     """
     errors = 0
     num_found = 0
@@ -53,7 +53,17 @@ def check_master(lines):
     obsolete_entries_found = 0
     obsolete_entries_reported = 0
 
-    # ent dw 226
+    # Build country map from comments in country.asm
+    # Format: ;   1 = United States (US)           2 = Canada (CA)
+    country_map = {}
+    comment_country_re = re.compile(r"(\d+)\s*=\s*[^()]+\(([A-Z]{2})\)")
+    for line in lines:
+        if line.strip().startswith(';'):
+            for match in comment_country_re.finditer(line):
+                num_code, alpha2 = match.groups()
+                country_map[num_code] = alpha2
+
+    # ent dw 231
     ent_re = r"^ent\s+dw\s+(\d+)"
     
     # %if OBSOLETE / %ifdef OBSOLETE
@@ -62,12 +72,14 @@ def check_master(lines):
     # %else or %endif
     obsolete_end_re = r"^%(?:else|endif)"
 
-    # ENTRY us, 1, 437
-    # OLD_ENTRY yu, 38, 852
-    entry_re = r"^(OLD_)?ENTRY\s+([a-z]{2})\s*,\s*(\d+)\s*,\s*(\d+)"
+    # COUNTRY 1, 437, ...
+    # OLD_COUNTRY 38, 852, ...
+    # COUNTRY_LCASE 7, 808, ...
+    # COUNTRY_DBCS 81, 932, ...
+    country_re = r"^(OLD_)?COUNTRY(?:_LCASE|_DBCS)?\s+(\d+)\s*,\s*(\d+)"
     
-    # MULTILANG_ENTRY nl, BE, 032, 0, 850
-    multilang_re = r"^MULTILANG_ENTRY\s+([a-z]{2})\s*,\s*([A-Z]{2})\s*,\s*(\d+)\s*,\s*(\d)\s*,\s*(\d+)"
+    # COUNTRY_ML 32, 0, 850, ...
+    country_ml_re = r"^(OLD_)?COUNTRY_ML\s+(\d+)\s*,\s*(\d+)\s*,\s*(\d+)"
 
     for lineNo, line in enumerate(lines, start=1):
         # Strip comments and whitespace
@@ -90,16 +102,24 @@ def check_master(lines):
                 num_reported = int(ent.group(1))
             continue
 
-        # Check standard ENTRY or OLD_ENTRY
-        entry = re.match(entry_re, line_clean)
-        if entry:
-            if entry.group(1) == "OLD_": # in_obsolete_block
+        # Check standard COUNTRY macros
+        country_match = re.match(country_re, line_clean)
+        if country_match:
+            is_old = country_match.group(1) == "OLD_"
+            numeric_country = country_match.group(2)
+            codepage = country_match.group(3)
+            
+            if is_old:
                 obsolete_entries_found += 1
             else:
                 num_found += 1
-            country_code = entry.group(2)
-            numeric_country = entry.group(3)
-            codepage = entry.group(4)
+            
+            # Lookup alpha2 code
+            country_code = country_map.get(numeric_country)
+            if not country_code:
+                print(f"Line {lineNo}: Numeric country code {numeric_country} not found in country map")
+                errors += 1
+                continue
             
             # Validate country code is ISO3166-1-A2
             if not is_alpha2(country_code):
@@ -115,33 +135,41 @@ def check_master(lines):
 
             continue
 
-        # Check MULTILANG_ENTRY
-        multilang = re.match(multilang_re, line_clean)
-        if multilang:
-            num_found += 1
-            lang_code = multilang.group(1)
-            country_code = multilang.group(2)
-            numeric_country = multilang.group(3)
-            lang_variant = multilang.group(4)
-            codepage = multilang.group(5)
+        # Check COUNTRY_ML
+        ml_match = re.match(country_ml_re, line_clean)
+        if ml_match:
+            is_old = ml_match.group(1) == "OLD_"
+            base_cc = ml_match.group(2)
+            ml_idx = ml_match.group(3)
+            codepage = ml_match.group(4)
+            
+            # Compute extended country code: 40000 + (ml_idx * 1000) + base_cc
+            numeric_country = str(40000 + (int(ml_idx) * 1000) + int(base_cc))
+            
+            if is_old:
+                obsolete_entries_found += 1
+            else:
+                num_found += 1
+            
+            # For ML, we validate against the base country code for the alpha2 lookup
+            country_code = country_map.get(base_cc)
+            if not country_code:
+                print(f"Line {lineNo}: Base numeric country code {base_cc} not found in country map")
+                errors += 1
+                continue
             
             # Validate country code is ISO3166-1-A2
             if not is_alpha2(country_code):
-                print(f"Line {i}: Country ISO3166-1-A2 ({country_code}) invalid in '{line_clean}'")
+                print(f"Line {lineNo}: Country ISO3166-1-A2 ({country_code}) invalid in '{line_clean}'")
                 errors += 1
                 continue
-            
-            # Validate language code is ISO639-1 (optional - add is_lang_code() if needed)
-            # For now, just check it's 2 lowercase letters (already enforced by regex)
             
             # Validate country code matches numeric country code
-            # Note: numeric_country has leading zeros stripped by int conversion
-            if not is_country(country_code, numeric_country.lstrip('0') or '0'):
-                print(f"Line {i}: Country ISO3166-1-A2 ({country_code}) mismatch with International Phone Prefix ({numeric_country}) in '{line_clean}'")
+            # Note: for ML, we check the base country code against the alpha2
+            if not is_country(country_code, base_cc):
+                print(f"Line {lineNo}: Country ISO3166-1-A2 ({country_code}) mismatch with International Phone Prefix ({base_cc}) in '{line_clean}'")
                 errors += 1
                 continue
-            
-            # Validate language variant is 0-9 (already enforced by regex)
             
             continue
 
