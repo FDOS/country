@@ -186,7 +186,7 @@ if entries_found != entries_reported:
     sys.exit(1)
 
 if (entries_found + obsolete_entries_found) != obsolete_entries_reported:
-    print(f"Number of obsolete entries found {obsolete_entries_found} != number of obsolete entries reported {obsolete_entries_reported}")
+    print(f"Total entries found (entries_found + obsolete_entries_found = {entries_found + obsolete_entries_found}) != total entries reported when OBSOLETE is defined ({obsolete_entries_reported})")
     sys.exit(1)
 
 if errors:
