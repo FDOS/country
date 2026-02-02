@@ -218,7 +218,7 @@
 ; Purpose:
 ;   Singular macro to specify data for 3 different structures in COUNTRY.SYS
 ;   Each COUNTRY* macro row corresponds to a complete country/codepage set of:
-;     1. Entry table entry
+;     1. Entry table record
 ;     2. Subfunction header
 ;     3. Country info structure
 ;
@@ -313,9 +313,9 @@ _24 equ 1       ; 24-hour clock
 ;   COUNTRY 1, 437, en_collate_437, en_yn, MDY, "$",0,0,0,0, ",",".","-",":", 0,2,_12
 ;
 ; Generated labels (for cc=1, cp=437):
-;   __1_437  - Entry table record
-;   _1_437   - Subfunction header
-;   ci_1_437 - Country info data
+;   __e_1_437 - Entry table record
+;   _h_1_437  - Subfunction header
+;   ci_1_437  - Country info data
 ;-------------------------------------------------------------------------------
 
 %macro COUNTRY 17
