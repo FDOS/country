@@ -40,7 +40,6 @@ def check_master(lines):
     Checks:
     - Country codes are valid ISO3166-1-A2 (extracted from country.asm comments)
     - Country codes match international phone prefixes
-    - Codepage consistency
     - Entry count matches reported count
     
     Returns:
