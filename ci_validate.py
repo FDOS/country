@@ -40,17 +40,14 @@ def check_master(lines):
     Checks:
     - Country codes are valid ISO3166-1-A2 (extracted from country.asm comments)
     - Country codes match international phone prefixes
-    - Entry count matches reported count
     
     Returns:
-        tuple: (errors, num_found, num_reported, obsolete_entries_found, obsolete_entries_reported)
+        tuple: (errors, num_found, obsolete_entries_found)
     """
     errors = 0
     num_found = 0
-    num_reported = 0
     in_obsolete_block = False
     obsolete_entries_found = 0
-    obsolete_entries_reported = 0
 
     # Build country map from comments in country.asm
     # Format: ;   1 = United States (US)           2 = Canada (CA)
@@ -62,12 +59,9 @@ def check_master(lines):
                 num_code, alpha2 = match.groups()
                 country_map[num_code] = alpha2
 
-    # ent dw 231
-    ent_re = r"^ent\s+dw\s+(\d+)"
-    
     # %if OBSOLETE / %ifdef OBSOLETE
     obsolete_start_re = r"^%if(?:def)?\s+OBSOLETE"
-    
+
     # %else or %endif
     obsolete_end_re = r"^%(?:else|endif)"
 
@@ -92,15 +86,6 @@ def check_master(lines):
             in_obsolete_block = False
             continue
         
-        # Check for entry count declaration
-        ent = re.match(ent_re, line_clean)        
-        if ent:
-            if in_obsolete_block:
-                obsolete_entries_reported = int(ent.group(1))
-            else:
-                num_reported = int(ent.group(1))
-            continue
-
         # Check standard COUNTRY macros
         country_match = re.match(country_re, line_clean)
         if country_match:
@@ -172,24 +157,15 @@ def check_master(lines):
             
             continue
 
-    return (errors, num_found, num_reported, obsolete_entries_found, obsolete_entries_reported)
+    return (errors, num_found, obsolete_entries_found)
 
 
 # Usage
 lines = COUNTRY_ASM.read_text(encoding='utf-8').splitlines()
-errors, entries_found, entries_reported, obsolete_entries_found, obsolete_entries_reported = check_master(lines)
-
-# validate if found count matches reported count
-if entries_found != entries_reported:
-    print(f"Number of entries found {entries_found} != number of entries reported {entries_reported}")
-    sys.exit(1)
-
-if (entries_found + obsolete_entries_found) != obsolete_entries_reported:
-    print(f"Total entries found (entries_found + obsolete_entries_found = {entries_found + obsolete_entries_found}) != total entries reported when OBSOLETE is defined ({obsolete_entries_reported})")
-    sys.exit(1)
+errors, entries_found, obsolete_entries_found = check_master(lines)
 
 if errors:
     print(f"Errors = {errors}")
     sys.exit(2)
 
-print(f"\n✅ Validation passed: {entries_found} entries found, {entries_reported} reported with {obsolete_entries_found} obsolete entries")
+print(f"\n✅ Validation passed: {entries_found} entries found, with {obsolete_entries_found} obsolete entries")

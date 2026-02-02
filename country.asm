@@ -319,12 +319,14 @@ _24 equ 1       ; 24-hour clock
 ;-------------------------------------------------------------------------------
 
 %macro COUNTRY 17
+section .data align=1
     ; === SECTION 1: Entry Table Record ===
     ; Format: dw size, country, codepage, reserved(2); dd offset
 __e_%1_%2:
     dw 12, %1, %2, 0, 0
     dd _h_%1_%2
 
+section .data2 align=1
     ; === SECTION 2: Subfunction Header ===
     ; Count of subfunctions followed by (size, id, offset) triplets
 _h_%1_%2:
@@ -344,6 +346,7 @@ _h_%1_%2:
     dw 6, 35                        ; Subfunction 35: Yes/No chars
       dd %4
 
+section .data3 align=1
     ; === SECTION 3: Country Info Data ===
 ci_%1_%2:
     _cnf_data %1, %2, %5, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17
@@ -364,11 +367,13 @@ ci_%1_%2:
 ;-------------------------------------------------------------------------------
 
 %macro COUNTRY_LCASE 18
+section .data align=1
     ; === SECTION 1: Entry Table Record ===
 __e_%1_%2:
     dw 12, %1, %2, 0, 0
     dd _h_%1_%2
 
+section .data2 align=1
     ; === SECTION 2: Subfunction Header (8 subfunctions with lcase) ===
 _h_%1_%2:
     dw 8                            ; 8 subfunctions (includes lcase)
@@ -389,6 +394,7 @@ _h_%1_%2:
     dw 6, 35                        ; Subfunction 35: Yes/No chars
       dd %4
 
+section .data3 align=1
     ; === SECTION 3: Country Info Data ===
 ci_%1_%2:
     _cnf_data %1, %2, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
@@ -405,11 +411,13 @@ ci_%1_%2:
 ;-------------------------------------------------------------------------------
 
 %macro COUNTRY_DBCS 18
+section .data align=1
     ; === SECTION 1: Entry Table Record ===
 __e_%1_%2:
     dw 12, %1, %2, 0, 0
     dd _h_%1_%2
 
+section .data2 align=1
     ; === SECTION 2: Subfunction Header ===
 _h_%1_%2:
     dw 7
@@ -428,6 +436,7 @@ _h_%1_%2:
     dw 6, 35
       dd %4
 
+section .data3 align=1
     ; === SECTION 3: Country Info Data ===
 ci_%1_%2:
     _cnf_data %1, %2, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
@@ -454,11 +463,13 @@ ci_%1_%2:
     ; Compute extended country code: (4 multilang base = 4XNNN)
     %assign _extended_cc (40000 + (%2 * 1000) + %1)
 
+section .data align=1
     ; === SECTION 1: Entry Table Record ===
 __e_%[_extended_cc]_%3:
     dw 12, _extended_cc, %3, 0, 0
     dd _h_%[_extended_cc]_%3
 
+section .data2 align=1
     ; === SECTION 2: Subfunction Header ===
 _h_%[_extended_cc]_%3:
     dw 7
@@ -477,6 +488,7 @@ _h_%[_extended_cc]_%3:
     dw 6, 35
       dd %5
 
+section .data3 align=1
     ; === SECTION 3: Country Info Data ===
 ci_%[_extended_cc]_%3:
     _cnf_data _extended_cc, %3, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
@@ -507,6 +519,18 @@ ci_%[_extended_cc]_%3:
     COUNTRY_ML %1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
 %endif
 %endmacro
+
+%macro COUNTRY_ENTRIES_START 0
+section .data align=1
+country_entries_start:
+%endmacro
+
+%macro COUNTRY_ENTRIES_END 0
+section .data align=1
+country_entries_end:
+%endmacro
+
+[map all country.map]
 
 ;-------------------------------------------------------------------------------
 ; USAGE EXAMPLES
@@ -545,13 +569,12 @@ ci_%[_extended_cc]_%3:
 ;   - Bytes 8-17: Reserved/undocumented
 ;   - Bytes 18-21: Pointer to entry table
 ;
+
+section .data
+
 db 0FFh,"COUNTRY",0,0,0,0,0,0,0,0,1,0,1 ; reserved and undocumented values
 dd  ent     ; first entry
-%ifdef OBSOLETE
-ent dw 239
-%else
-ent dw 231
-%endif
+ent dw  (country_entries_end - country_entries_start) / 14
 
 ; ==============================================================================
 ; SECTION 2: COUNTRY ENTRIES
@@ -559,6 +582,8 @@ ent dw 231
 ;
 ; Each COUNTRY* macro generates entry table + subfunction header + country info
 ;
+
+COUNTRY_ENTRIES_START
 
 ; ------------------------------------------------------------------------------
 ; United States - Country Code 1
@@ -1061,7 +1086,9 @@ COUNTRY 972, 850, il_collate_850, yn_kl, DMY, "N", "I", "S", 0, 0, ",", ".", " "
 COUNTRY 972, 858, il_collate_858, yn_kl, DMY, "N", "I", "S", 0, 0, ",", ".", " ", ":", 2, 2, _24
 COUNTRY 972, 862, il_collate_862, yn_il_862, DMY, 99h, 0, 0, 0, 0, ",", ".", " ", ":", 2, 2, _24
 
+COUNTRY_ENTRIES_END
 
+section .data4 align=1
 ; ==============================================================================
 ; SECTION 3: UPPERCASE/LOWERCASE TABLES (Subfunctions 2, 3, 4)
 ; ==============================================================================
@@ -1615,6 +1642,7 @@ db 240, 241, 242, 243, 244, 245, 246, 247
 db 248, 249, 250, 251, 252, 253, 254, 255
 
 
+section .data5 align=1
 ; ==============================================================================
 ; SECTION 4: FILENAME CHARACTER TABLE (Subfunction 5)
 ; ==============================================================================
@@ -1659,6 +1687,7 @@ db  46,	 34,  47,  92,	91,  93,  58, 124 ; ."/\[]:|
 db  60,	 62,  43,  61,	59,  44           ; <>+=;,
 
 
+section .data6 align=1
 ; ==============================================================================
 ; SECTION 5: COLLATING SEQUENCES (Subfunction 6)
 ; ==============================================================================
@@ -3095,6 +3124,7 @@ xk_collate_872 equ ru_collate_872
 xk_collate_850 equ en_collate_850
 xk_collate_858 equ en_collate_858
 
+section .data7 align=1
 ; ==============================================================================
 ; SECTION 6: DBCS TABLES (Subfunction 7)
 ; ==============================================================================
@@ -3142,6 +3172,7 @@ cn_dbcs_936 db 0FFh,"DBCS   "
       db 081h, 0FCh
       db 000h, 000h
 
+section .data8 align=1
 ; ==============================================================================
 ; SECTION 7: YES/NO TABLES (Subfunction 35)
 ; ==============================================================================
