@@ -115,28 +115,27 @@
 ; ==============================================================================
 ;
 ; SECTION 1: FILE STRUCTURE
-;   - File Header (signature, magic bytes, entry pointer)
+;   File Header (signature, magic bytes, entry pointer)
+;
+; SECTION 2: ENTRIES (for each country/codepage)
 ;   - Entry Table (index of all country/codepage combinations)
+;   - Defines which subfunctions are available for each entry
+;   - Date format, time format, currency symbol, separators,
+;     the COUNTRY INFORMATION TABLES (subfunction 1)
 ;
-; SECTION 2: SUBFUNCTION HEADERS (for each country/codepage)
-;   Defines which subfunctions are available for each entry
-;
-; SECTION 3: COUNTRY INFORMATION TABLES (Subfunction 1)
-;   Date format, time format, currency symbol, separators
-;
-; SECTION 4: UPPERCASE/LOWERCASE TABLES (Subfunctions 2, 3, 4)
+; SECTION 3: UPPERCASE/LOWERCASE TABLES (Subfunctions 2, 3, 4)
 ;   Character case conversion mappings for each codepage
 ;
-; SECTION 5: FILENAME CHARACTER TABLE (Subfunction 5)
+; SECTION 4: FILENAME CHARACTER TABLE (Subfunction 5)
 ;   Characters allowed/disallowed in filenames
 ;
-; SECTION 6: COLLATING SEQUENCES (Subfunction 6)
+; SECTION 5: COLLATING SEQUENCES (Subfunction 6)
 ;   Sort order for each country/codepage combination
 ;
-; SECTION 7: DBCS TABLES (Subfunction 7)
+; SECTION 6: DBCS TABLES (Subfunction 7)
 ;   Double-Byte Character Set lead byte ranges (Japanese, Korean, Chinese)
 ;
-; SECTION 8: YES/NO TABLES (Subfunction 35)
+; SECTION 7: YES/NO TABLES (Subfunction 35)
 ;   Yes/No prompt characters for each language
 ;
 ; ------------------------------------------------------------------------------
@@ -211,7 +210,330 @@
 ;  934  = Korean                    936  = Chinese Simplified
 ; 1125  = Ukrainian                1131  = Belarusian
 ; 1258  = Vietnamese              30033  = Bulgarian MIK
+
+; ==============================================================================
+; COUNTRY* MACROS
+; ==============================================================================
 ;
+; Purpose:
+;   Singular macro to specify data for 3 different structures in COUNTRY.SYS
+;   Each COUNTRY* macro row corresponds to a complete country/codepage set of:
+;     1. Entry table entry
+;     2. Subfunction header
+;     3. Country info structure
+;
+;-------------------------------------------------------------------------------
+; PARAMETER REFERENCE
+;-------------------------------------------------------------------------------
+;
+; Standard Parameters (always required)
+; Warning: %2/%5 onward shift up one for COUNTRY* macros with optional params
+;   %1  - Country code (numeric, international phone code, e.g., 1 for US, 49 for Germany)
+;   %2  - Codepage number (e.g., 437, 850, 858)
+;   %3  - Collate table label (e.g., en_collate_437)
+;   %4  - Yes/No table label (e.g., en_yn)
+;   %5  - Date format: (MDY=0, DMY=1, YMD=2)
+;   %6-10 Currency symbol (up to 4 bytes plus null terminator, 0 padded)
+;   %6  - Currency symbol char 1 (e.g., "$", 0D5h for Euro)
+;   %7  - Currency symbol char 2 (or 0 if unused)
+;   %8  - Currency symbol char 3 (or 0 if unused)
+;   %9  - Currency symbol char 4 (or 0 if unused)
+;   %10 - Currency symbol char 5 (always 0)
+;   %11 - Thousands separator (e.g., ',' or '.')
+;   %12 - Decimal separator (e.g., '.' or ',')
+;   %13 - Date separator (e.g., '/', '-', '.')
+;   %14 - Time separator (usually ':')
+;   %15 - Currency format flags: (0-7)
+;          bit 0: 0=symbol precedes value, 1=symbol follows value
+;          bit 1: number of spaces between value and symbol
+;          bit 2: 1=symbol replaces decimal point
+;   %16 - Currency precision (decimal places, typically 2)
+;   %17 - Time format: _12 (0=12-hour with AM/PM) or _24 (1=24-hour)
+;
+; Optional Parameters (handled by extended macros):
+;   - %2, multilang: Language index for multilingual countries (0-9)
+;   - %5, lcase: Lowercase mapping table (if different from uppercase inverse)
+;   - %5, dbcs: DBCS table (defaults to dbcs_empty)
+;
+;-------------------------------------------------------------------------------
+
+;-------------------------------------------------------------------------------
+; CONSTANTS AND DATE FORMAT DEFINITIONS
+;-------------------------------------------------------------------------------
+
+MDY equ 0       ; Month-Day-Year (US format)
+DMY equ 1       ; Day-Month-Year (European format)
+YMD equ 2       ; Year-Month-Day (ISO format)
+
+_12 equ 0       ; 12-hour clock
+_24 equ 1       ; 24-hour clock
+
+;-------------------------------------------------------------------------------
+; INTERNAL MACRO: _cnf_data
+;-------------------------------------------------------------------------------
+; Generates the country info data structure (subfunction 1 data).
+; This is the core 22-byte country info block.
+;-------------------------------------------------------------------------------
+%macro _cnf_data 15
+    db 0FFh,"CTYINFO"           ; Signature
+    dw 22                       ; Length of data
+    dw %1, %2, %3               ; Country ID, Codepage, Date format
+    db %4, %5, %6, %7, %8       ; Currency symbol (5 bytes)
+    db %9, %10                  ; Thousands sep, Decimal sep
+    db %11, %12                 ; Date sep, Time sep
+    db %13                      ; Currency format
+    db %14                      ; Decimal places
+    db %15                      ; Time format
+    dw 0, 0                     ; Reserved
+%endmacro
+
+;-------------------------------------------------------------------------------
+; INTERNAL MACRO: _ucase_for_cp
+;-------------------------------------------------------------------------------
+; Returns the uppercase table label for a given codepage.
+; Uses preprocessor to map codepage to ucase_XXX label.
+;-------------------------------------------------------------------------------
+%define _ucase(cp) ucase_ %+ cp
+%define _fchar_label fchar
+
+;-------------------------------------------------------------------------------
+; MAIN MACRO: COUNTRY
+;-------------------------------------------------------------------------------
+;
+; Creates a complete country entry with all components:
+;   - Entry table record
+;   - Subfunction header (7 subfunctions, use COUNTRY_LCASE if has lcase table)
+;   - Country info data structure
+;
+; Syntax:
+;   COUNTRY cc, cp, collate, yesno, datefmt, cur1,cur2,cur3,cur4,cur5, \
+;           ksep, dsep, datesep, timesep, curfmt, decpl, timefmt
+;
+; Example:
+;   COUNTRY 1, 437, en_collate_437, en_yn, MDY, "$",0,0,0,0, ",",".","-",":", 0,2,_12
+;
+; Generated labels (for cc=1, cp=437):
+;   __1_437  - Entry table record
+;   _1_437   - Subfunction header
+;   ci_1_437 - Country info data
+;-------------------------------------------------------------------------------
+
+%macro COUNTRY 17
+    ; === SECTION 1: Entry Table Record ===
+    ; Format: dw size, country, codepage, reserved(2); dd offset
+__e_%1_%2:
+    dw 12, %1, %2, 0, 0
+    dd _h_%1_%2
+
+    ; === SECTION 2: Subfunction Header ===
+    ; Count of subfunctions followed by (size, id, offset) triplets
+_h_%1_%2:
+    dw 7                            ; 7 standard subfunctions
+    dw 6, 1                         ; Subfunction 1: Country info
+      dd ci_%1_%2
+    dw 6, 2                         ; Subfunction 2: Uppercase table
+      dd _ucase(%2)
+    dw 6, 4                         ; Subfunction 4: Filename uppercase
+      dd _ucase(%2)
+    dw 6, 5                         ; Subfunction 5: Filename chars
+      dd fchar
+    dw 6, 6                         ; Subfunction 6: Collating sequence
+      dd %3
+    dw 6, 7                         ; Subfunction 7: DBCS table
+      dd dbcs_empty
+    dw 6, 35                        ; Subfunction 35: Yes/No chars
+      dd %4
+
+    ; === SECTION 3: Country Info Data ===
+ci_%1_%2:
+    _cnf_data %1, %2, %5, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17
+%endmacro
+
+;-------------------------------------------------------------------------------
+; EXTENDED MACRO: COUNTRY_LCASE
+;-------------------------------------------------------------------------------
+;
+; Same as COUNTRY but includes a lowercase mapping table (subfunction 3).
+; Use this for languages where lowercase mapping differs from uppercase inverse.
+;
+; Syntax:
+;   COUNTRY_LCASE cc, cp, collate, yesno, lcase_table, datefmt, cur1,...
+;
+; Example:
+;   COUNTRY_LCASE 7, 866, ru_collate_866, ru_yn_866, lcase_866, DMY, ...
+;-------------------------------------------------------------------------------
+
+%macro COUNTRY_LCASE 18
+    ; === SECTION 1: Entry Table Record ===
+__e_%1_%2:
+    dw 12, %1, %2, 0, 0
+    dd _h_%1_%2
+
+    ; === SECTION 2: Subfunction Header (8 subfunctions with lcase) ===
+_h_%1_%2:
+    dw 8                            ; 8 subfunctions (includes lcase)
+    dw 6, 1                         ; Subfunction 1: Country info
+      dd ci_%1_%2
+    dw 6, 2                         ; Subfunction 2: Uppercase table
+      dd _ucase(%2)
+    dw 6, 3                         ; Subfunction 3: Lowercase table
+      dd %5
+    dw 6, 4                         ; Subfunction 4: Filename uppercase
+      dd _ucase(%2)
+    dw 6, 5                         ; Subfunction 5: Filename chars
+      dd fchar
+    dw 6, 6                         ; Subfunction 6: Collating sequence
+      dd %3
+    dw 6, 7                         ; Subfunction 7: DBCS table
+      dd dbcs_empty
+    dw 6, 35                        ; Subfunction 35: Yes/No chars
+      dd %4
+
+    ; === SECTION 3: Country Info Data ===
+ci_%1_%2:
+    _cnf_data %1, %2, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
+%endmacro
+
+;-------------------------------------------------------------------------------
+; EXTENDED MACRO: COUNTRY_DBCS
+;-------------------------------------------------------------------------------
+;
+; Same as COUNTRY but with a custom DBCS table (for CJK languages).
+;
+; Syntax:
+;   COUNTRY_DBCS cc, cp, collate, yesno, dbcs_table, datefmt, cur1,...
+;-------------------------------------------------------------------------------
+
+%macro COUNTRY_DBCS 18
+    ; === SECTION 1: Entry Table Record ===
+__e_%1_%2:
+    dw 12, %1, %2, 0, 0
+    dd _h_%1_%2
+
+    ; === SECTION 2: Subfunction Header ===
+_h_%1_%2:
+    dw 7
+    dw 6, 1
+      dd ci_%1_%2
+    dw 6, 2
+      dd _ucase(%2)
+    dw 6, 4
+      dd _ucase(%2)
+    dw 6, 5
+      dd fchar
+    dw 6, 6
+      dd %3
+    dw 6, 7
+      dd %5                         ; Custom DBCS table
+    dw 6, 35
+      dd %4
+
+    ; === SECTION 3: Country Info Data ===
+ci_%1_%2:
+    _cnf_data %1, %2, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
+%endmacro
+
+;-------------------------------------------------------------------------------
+; MULTILINGUAL MACRO: COUNTRY_ML
+;-------------------------------------------------------------------------------
+;
+; For multilingual countries (extended codes 4XNNN format).
+; The country code is computed as: 40000 + (multilang_index * 1000) + base_country
+;
+; Syntax:
+;   COUNTRY_ML base_cc, multilang_idx, cp, collate, yesno, datefmt, cur1,...
+;
+; Example:
+;   ; Belgium/Dutch (40032) = base 32, multilang 0
+;   COUNTRY_ML 32, 0, 850, nl_collate_850, nl_yn, DMY, "E","U","R",0,0, ...
+;   ; Spain/Catalan (41034) = base 34, multilang 1
+;   COUNTRY_ML 34, 1, 850, ca_collate_850, ca_yn, DMY, "E","U","R",0,0, ...
+;-------------------------------------------------------------------------------
+
+%macro COUNTRY_ML 18
+    ; Compute extended country code: (4 multilang base = 4XNNN)
+    %assign _extended_cc (40000 + (%2 * 1000) + %1)
+
+    ; === SECTION 1: Entry Table Record ===
+__e_%[_extended_cc]_%3:
+    dw 12, _extended_cc, %3, 0, 0
+    dd _h_%[_extended_cc]_%3
+
+    ; === SECTION 2: Subfunction Header ===
+_h_%[_extended_cc]_%3:
+    dw 7
+    dw 6, 1
+      dd ci_%[_extended_cc]_%3
+    dw 6, 2
+      dd _ucase(%3)
+    dw 6, 4
+      dd _ucase(%3)
+    dw 6, 5
+      dd fchar
+    dw 6, 6
+      dd %4
+    dw 6, 7
+      dd dbcs_empty
+    dw 6, 35
+      dd %5
+
+    ; === SECTION 3: Country Info Data ===
+ci_%[_extended_cc]_%3:
+    _cnf_data _extended_cc, %3, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
+%endmacro
+
+;-------------------------------------------------------------------------------
+; OBSOLETE WRAPPER MACROS
+;-------------------------------------------------------------------------------
+;
+; These macros wrap entries in %ifdef OBSOLETE blocks for backward
+; compatibility with legacy country codes.
+;-------------------------------------------------------------------------------
+
+%macro OLD_COUNTRY 17
+%ifdef OBSOLETE
+    COUNTRY %1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17
+%endif
+%endmacro
+
+%macro OLD_COUNTRY_LCASE 18
+%ifdef OBSOLETE
+    COUNTRY_LCASE %1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
+%endif
+%endmacro
+
+%macro OLD_COUNTRY_ML 18
+%ifdef OBSOLETE
+    COUNTRY_ML %1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
+%endif
+%endmacro
+
+;-------------------------------------------------------------------------------
+; USAGE EXAMPLES
+;-------------------------------------------------------------------------------
+;
+; Example 1: Standard single-language country (United States)
+; -----------------------------------------------------------------
+; COUNTRY 1, 437, en_collate_437, en_yn, MDY, "$",0,0,0,0, ",",".","-",":", 0,2,_12
+; COUNTRY 1, 850, en_collate_850, en_yn, MDY, "$",0,0,0,0, ",",".","-",":", 0,2,_12
+;
+; Example 2: Country with lowercase table (Russia cp866)
+; -----------------------------------------------------------------
+; COUNTRY_LCASE 7, 866, ru_collate_866, ru_yn_866, lcase_866, DMY, 0E0h,".",0,0,0, " ",",",".",":", 3,2,_24
+;
+; Example 3: Multilingual country (Belgium/Dutch)
+; -----------------------------------------------------------------
+; COUNTRY_ML 32, 0, 850, nl_collate_850, nl_yn, DMY, "E","U","R",0,0, ".",",","/",":", 0,2,_24
+;
+; Example 4: DBCS country (Japan)
+; -----------------------------------------------------------------
+; COUNTRY_DBCS 81, 932, jp_collate_932, jp_yn, dbcs_japan, YMD, 5Ch,0,0,0,0, ",",".","-",":", 0,0,_24
+;
+; Example 5: Obsolete country (wrapped in %ifdef OBSOLETE)
+; -----------------------------------------------------------------
+; OLD_COUNTRY 38, 852, yu_collate_852, sh_yn, YMD, "D","i","n",0,0, ".",",","-",":", 2,2,_24
+
+
 ; ==============================================================================
 ; SECTION 1: FILE HEADER
 ; ==============================================================================
@@ -224,8 +546,7 @@
 ;   - Bytes 18-21: Pointer to entry table
 ;
 db 0FFh,"COUNTRY",0,0,0,0,0,0,0,0,1,0,1 ; reserved and undocumented values
-dd  ent	 ; first entry
-; number of entries - don't forget to update when adding a new country
+dd  ent     ; first entry
 %ifdef OBSOLETE
 ent dw 239
 %else
@@ -233,1630 +554,516 @@ ent dw 231
 %endif
 
 ; ==============================================================================
-; SECTION 2: ENTRY TABLE
+; SECTION 2: COUNTRY ENTRIES
 ; ==============================================================================
 ;
-; Each entry is 14 bytes:
-;   - Word:  Entry size (always 12)
-;   - Word:  Country code (numeric)
-;   - Word:  Codepage number
-;   - DWord: Reserved (always 0,0)
-;   - DWord: Offset to subfunction header
+; Each COUNTRY* macro generates entry table + subfunction header + country info
 ;
-; Entry naming convention: __<country>_<codepage>
-; Data naming convention:  _<country>_<codepage>
-;
-; Each country has an entry for each codepage supported.
-;
-; Macro: ENTRY
-; Creates a country entry structure
-; Parameters:
-;   %1 = 2-character ISO country code (e.g., gr)
-;   %2 = numerical country code (e.g., 30)
-;   %3 = codepage number (e.g., 869)
-;
-; Note: labels use numeric country code to avoid issues, e.g. cz=42 & 420
-;       previous versions used 2-char code in label
-
-%macro ENTRY 3
-__%2_%3 dw 12, %2, %3, 0, 0
-        dd _%1_%3
-%endmacro
-
-; Macro: OLD_ENTRY
-; Use OLD_ENTRY for deprecated country/codepage combinations:
-; Conditionally creates a country entry only if OBSOLETE is defined
-; Has same parameters as ENTRY
-; To include obsolete entries, define OBSOLETE when assembling:
-;     %define OBSOLETE
-; E.g.
-;     OLD_ENTRY yu, 38, 852    ; Yugoslavia - only included if OBSOLETE defined
-
-%macro OLD_ENTRY 3
-%ifdef OBSOLETE
-    ENTRY %1, %2, %3
-%endif
-%endmacro
-
-; ------------------------------------------------------------------------------
-; Standard Countries (codes 0-999)
-; ------------------------------------------------------------------------------
-;
-; Note: US 437 is the fallback for unknown or unsupported country/codepages
-; E.g ENTRY us, 1, 437 macro expands to:
-; __1_437 dw 12, 1, 437, 0, 0
-;          dd _us_437
 
 ; ------------------------------------------------------------------------------
 ; United States - Country Code 1
-; English
 ; ------------------------------------------------------------------------------
-ENTRY us, 1, 437
-ENTRY us, 1, 850
-ENTRY us, 1, 858
+COUNTRY 1, 437, en_collate_437, en_yn, MDY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12 ; Currency: $ - US Dollar
+COUNTRY 1, 850, en_collate_850, en_yn, MDY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12
+COUNTRY 1, 858, en_collate_858, en_yn, MDY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12
 
 ; ------------------------------------------------------------------------------
-; Canada - Country Code 2
-; French Canada (Bilingual support)
+; Canada (French) - Country Code 2
 ; ------------------------------------------------------------------------------
-ENTRY ca, 2, 863
-ENTRY ca, 2, 850
-ENTRY ca, 2, 858
+COUNTRY 2, 850, fr_collate_850, fr_yn, YMD, "$", 0, 0, 0, 0, " ", ",", "-", ":", 3, 2, _24
+COUNTRY 2, 858, fr_collate_858, fr_yn, YMD, "$", 0, 0, 0, 0, " ", ",", "-", ":", 3, 2, _24
+COUNTRY 2, 863, fr_collate_863, fr_yn, YMD, "$", 0, 0, 0, 0, " ", ",", "-", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Latin America - Country Code 3
-; Spanish-speaking Latin American countries
 ; ------------------------------------------------------------------------------
-ENTRY la, 3, 858
-ENTRY la, 3, 850
-ENTRY la, 3, 437
+COUNTRY 3, 437, es_collate_437, es_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12
+COUNTRY 3, 850, es_collate_850, es_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12
+COUNTRY 3, 858, es_collate_858, es_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12
 
 ; ------------------------------------------------------------------------------
 ; Russia - Country Code 7
-; Russian Federation (multiple Cyrillic codepages)
 ; ------------------------------------------------------------------------------
-ENTRY ru, 7, 866
-ENTRY ru, 7, 808
-ENTRY ru, 7, 855
-ENTRY ru, 7, 872
-ENTRY ru, 7, 852
-ENTRY ru, 7, 850
-ENTRY ru, 7, 858
-ENTRY ru, 7, 437
+COUNTRY       7, 437, ru_collate_437, ru_yn,                DMY, "R", "U", "B", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY_LCASE 7, 808, ru_collate_808, ru_yn_808, lcase_808, DMY, 0E0h, ".",  0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY       7, 850, ru_collate_850, ru_yn,                DMY, "R", "U", "B", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY       7, 852, ru_collate_852, ru_yn,                DMY, "R", "U", "B", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY       7, 855, ru_collate_855, ru_yn_855,            DMY, 0E1h, ".",  0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY       7, 858, ru_collate_858, ru_yn,                DMY, "R", "U", "B", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY_LCASE 7, 866, ru_collate_866, ru_yn_866, lcase_866, DMY, 0E0h, ".",  0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY       7, 872, ru_collate_872, ru_yn_872,            DMY, 0E1h, ".",  0, 0, 0, " ", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; South Africa - Country Code 27
-; English (South African)
 ; ------------------------------------------------------------------------------
-ENTRY za, 27, 858
-ENTRY za, 27, 850
-ENTRY za, 27, 437
+COUNTRY 27, 437, en_collate_437, en_yn, YMD, "R", 0, 0, 0, 0, " ", ",", "/", ":", 0, 2, _24
+COUNTRY 27, 850, en_collate_850, en_yn, YMD, "R", 0, 0, 0, 0, " ", ",", "/", ":", 0, 2, _24
+COUNTRY 27, 858, en_collate_858, en_yn, YMD, "R", 0, 0, 0, 0, " ", ",", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Greece - Country Code 30
-; Greek (multiple Greek codepages)
 ; ------------------------------------------------------------------------------
-ENTRY gr, 30, 869
-ENTRY gr, 30, 737
-ENTRY gr, 30, 850
-ENTRY gr, 30, 858
+COUNTRY 30, 737, gr_collate_737, gr_yn_737, DMY, 84h, 93h, 90h,    0, 0, ".", ",", "/", ":", 1, 2, _12
+COUNTRY 30, 850, gr_collate_850, gr_yn,     DMY, "E", "Y", "P",    0, 0, ".", ",", "/", ":", 1, 2, _12
+COUNTRY 30, 858, gr_collate_858, gr_yn,     DMY, 0D5h,       0, 0, 0, 0, ".", ",", "/", ":", 1, 2, _12
+COUNTRY 30, 869, gr_collate_869, gr_yn_869, DMY, 0A8h, 0D1h, 0C7h, 0, 0, ".", ",", "/", ":", 1, 2, _12
 
 ; ------------------------------------------------------------------------------
 ; Netherlands - Country Code 31
-; Dutch
 ; ------------------------------------------------------------------------------
-ENTRY nl, 31, 858
-ENTRY nl, 31, 850
-ENTRY nl, 31, 437
+COUNTRY 31, 437, nl_collate_437, nl_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 31, 850, nl_collate_850, nl_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 31, 858, nl_collate_858, nl_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "-", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Belgium - Country Code 32
-; Belgian (multilingual)
 ; ------------------------------------------------------------------------------
-ENTRY be, 32, 858
-ENTRY be, 32, 850
-ENTRY be, 32, 437
+COUNTRY    32,    437, be_collate_437, nl_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY    32,    850, be_collate_850, nl_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY    32,    858, be_collate_858, nl_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+
+COUNTRY_ML 32, 0, 437, nl_collate_437, nl_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Dutch
+COUNTRY_ML 32, 0, 850, nl_collate_850, nl_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 32, 0, 858, nl_collate_858, nl_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 32, 1, 437, fr_collate_437, fr_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; French
+COUNTRY_ML 32, 1, 850, fr_collate_850, fr_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 32, 1, 858, fr_collate_858, fr_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 32, 2, 437, de_collate_437, de_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; German
+COUNTRY_ML 32, 2, 850, de_collate_850, de_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 32, 2, 858, de_collate_858, de_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; France - Country Code 33
-; French
 ; ------------------------------------------------------------------------------
-ENTRY fr, 33, 858
-ENTRY fr, 33, 850
-ENTRY fr, 33, 437
+COUNTRY 33, 437, fr_collate_437, fr_yn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 0, 2, _24
+COUNTRY 33, 850, fr_collate_850, fr_yn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 0, 2, _24
+COUNTRY 33, 858, fr_collate_858, fr_yn, DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Spain - Country Code 34
-; Spanish (Castilian)
 ; ------------------------------------------------------------------------------
-ENTRY es, 34, 858
-ENTRY es, 34, 850
-ENTRY es, 34, 437
+COUNTRY    34,    437, es_collate_437, es_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY    34,    850, es_collate_850, es_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY    34,    858, es_collate_858, es_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+
+COUNTRY_ML 34, 0, 437, es_collate_437, es_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Spanish
+COUNTRY_ML 34, 0, 850, es_collate_850, es_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 0, 858, es_collate_858, es_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 1, 437, ca_collate_437, ca_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Catalan
+COUNTRY_ML 34, 1, 850, ca_collate_850, ca_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 1, 858, ca_collate_858, ca_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 2, 437, gl_collate_437, gl_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Galician
+COUNTRY_ML 34, 2, 850, gl_collate_850, gl_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 2, 858, gl_collate_858, gl_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 3, 437, eu_collate_437, eu_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Basque
+COUNTRY_ML 34, 3, 850, eu_collate_850, eu_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 3, 858, eu_collate_858, eu_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Hungary - Country Code 36
-; Hungarian (Magyar)
 ; ------------------------------------------------------------------------------
-ENTRY hu, 36, 852
-ENTRY hu, 36, 850
-ENTRY hu, 36, 858
+COUNTRY 36, 850, hu_collate_850, hu_yn, YMD, "F", "t", 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 36, 852, hu_collate_852, hu_yn, YMD, "F", "t", 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 36, 858, hu_collate_858, hu_yn, YMD, "F", "t", 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Yugoslavia - Country Code 38
-; ************************************************************
-; ** OBSOLETE: Yugoslavia dissolved 1991-1992              **
-; ** Successor states: Slovenia (386), Croatia (384),      **
-; ** Bosnia-Herzegovina (387), Serbia (381), North         **
-; ** Macedonia (389), Montenegro (382), Kosovo (383)       **
-; ** Retained for backward compatibility only              **
-; ************************************************************
-; Serbo-Croatian (Latin and Cyrillic)
+; [OBSOLETE]
 ; ------------------------------------------------------------------------------
-OLD_ENTRY yu, 38, 852
-OLD_ENTRY yu, 38, 855
-OLD_ENTRY yu, 38, 872
-OLD_ENTRY yu, 38, 858
-OLD_ENTRY yu, 38, 850
+OLD_COUNTRY 38, 850, sh_collate_850, sh_yn,     YMD, "D", "i", "n",    0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 38, 852, sh_collate_852, sh_yn,     YMD, "D", "i", "n",    0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 38, 855, sh_collate_855, sh_yn_855, YMD, 0A7h, 0B7h, 0D4h, 0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 38, 858, sh_collate_858, sh_yn,     YMD, "D", "i", "n",    0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 38, 872, sh_collate_872, sh_yn_872, YMD, 0A7h, 0B7h, 0D4h, 0, 0, ".", ",", "-", ":", 2, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Italy - Country Code 39
-; Italian
 ; ------------------------------------------------------------------------------
-ENTRY it, 39, 858
-ENTRY it, 39, 850
-ENTRY it, 39, 437
-
-; ------------------------------------------------------------------------------
-; Romania - Country Code 40
-; Romanian
-; ------------------------------------------------------------------------------
-ENTRY ro, 40, 852
-ENTRY ro, 40, 850
-ENTRY ro, 40, 858
-
-; ------------------------------------------------------------------------------
-; Switzerland - Country Code 41
-; Swiss (multilingual)
-; ------------------------------------------------------------------------------
-ENTRY ch, 41, 858
-ENTRY ch, 41, 850
-ENTRY ch, 41, 437
-
-; ------------------------------------------------------------------------------
-; Czechoslovakia - Country Code 42
-; *** see Czech Republic (420) and Slovakia (421)
-; Czech
-; ------------------------------------------------------------------------------
-OLD_ENTRY cz, 42, 852
-OLD_ENTRY cz, 42, 850
-OLD_ENTRY cz, 42, 858
-
-; ------------------------------------------------------------------------------
-; Austria - Country Code 43
-; Austrian German
-; ------------------------------------------------------------------------------
-ENTRY at, 43, 858
-ENTRY at, 43, 850
-ENTRY at, 43, 437
-
-; ------------------------------------------------------------------------------
-; United Kingdom - Country Code 44
-; British English
-; ------------------------------------------------------------------------------
-ENTRY gb, 44, 858
-ENTRY gb, 44, 850
-ENTRY gb, 44, 437
-
-; ------------------------------------------------------------------------------
-; Denmark - Country Code 45
-; Danish
-; ------------------------------------------------------------------------------
-ENTRY dk, 45, 865
-ENTRY dk, 45, 850
-ENTRY dk, 45, 858
-
-; ------------------------------------------------------------------------------
-; Sweden - Country Code 46
-; Swedish
-; ------------------------------------------------------------------------------
-ENTRY se, 46, 865
-ENTRY se, 46, 858
-ENTRY se, 46, 850
-ENTRY se, 46, 437
-
-; ------------------------------------------------------------------------------
-; Norway - Country Code 47
-; Norwegian
-; ------------------------------------------------------------------------------
-ENTRY no, 47, 865
-ENTRY no, 47, 850
-ENTRY no, 47, 858
-
-; ------------------------------------------------------------------------------
-; Poland - Country Code 48
-; Polish
-; ------------------------------------------------------------------------------
-ENTRY pl, 48, 852
-ENTRY pl, 48, 850
-ENTRY pl, 48, 858
-
-; ------------------------------------------------------------------------------
-; Germany - Country Code 49
-; German (Deutsch)
-; ------------------------------------------------------------------------------
-ENTRY de, 49, 858
-ENTRY de, 49, 850
-ENTRY de, 49, 437
-
-; ------------------------------------------------------------------------------
-; Mexico - Country Code 52
-; Mexican Spanish
-; ------------------------------------------------------------------------------
-ENTRY mx, 52, 850
-ENTRY mx, 52, 858
-ENTRY mx, 52, 437
-
-; ------------------------------------------------------------------------------
-; Argentina - Country Code 54
-; Argentine Spanish
-; ------------------------------------------------------------------------------
-ENTRY ar, 54, 858
-ENTRY ar, 54, 850
-ENTRY ar, 54, 437
-
-; ------------------------------------------------------------------------------
-; Brazil - Country Code 55
-; Brazilian Portuguese
-; ------------------------------------------------------------------------------
-ENTRY br, 55, 858
-ENTRY br, 55, 850
-ENTRY br, 55, 437
-
-; ------------------------------------------------------------------------------
-; Malaysia - Country Code 60
-; Malaysian
-; ------------------------------------------------------------------------------
-ENTRY my, 60, 437
-
-; ------------------------------------------------------------------------------
-; Australia - Country Code 61
-; Australian English
-; ------------------------------------------------------------------------------
-ENTRY au, 61, 437
-ENTRY au, 61, 850
-ENTRY au, 61, 858
-
-; ------------------------------------------------------------------------------
-; Indonesia - Country Code 62
-; Indonesian (Bahasa Indonesia)
-; ------------------------------------------------------------------------------
-ENTRY id, 62, 850
-ENTRY id, 62, 437
-
-; ------------------------------------------------------------------------------
-; Philippines - Country Code 63
-; English/Filipino
-; ------------------------------------------------------------------------------
-ENTRY ph, 63, 850
-ENTRY ph, 63, 437
-
-; ------------------------------------------------------------------------------
-; New Zealand - Country Code 64
-; English (New Zealand)
-; ------------------------------------------------------------------------------
-ENTRY nz, 64, 850
-ENTRY nz, 64, 858
-ENTRY nz, 64, 437
-
-; ------------------------------------------------------------------------------
-; Singapore - Country Code 65
-; Singaporean
-; ------------------------------------------------------------------------------
-ENTRY sg, 65, 437
-
-; ------------------------------------------------------------------------------
-; Thailand - Country Code 66
-; Thai
-; ------------------------------------------------------------------------------
-ENTRY th, 66, 874
-ENTRY th, 66, 850
-ENTRY th, 66, 437
-
-; ------------------------------------------------------------------------------
-; Japan - Country Code 81
-; Japanese (includes DBCS support)
-; ------------------------------------------------------------------------------
-ENTRY jp, 81, 437
-ENTRY jp, 81, 932
-
-; ------------------------------------------------------------------------------
-; South Korea - Country Code 82
-; Korean (includes DBCS support)
-; ------------------------------------------------------------------------------
-ENTRY kr, 82, 437
-ENTRY kr, 82, 934
-
-; ------------------------------------------------------------------------------
-; Vietnam - Country Code 84
-; Vietnamese
-; ------------------------------------------------------------------------------
-ENTRY vn, 84, 1258
-ENTRY vn, 84, 850
-ENTRY vn, 84, 437
-
-; ------------------------------------------------------------------------------
-; China - Country Code 86
-; Chinese Simplified (includes DBCS support)
-; ------------------------------------------------------------------------------
-ENTRY cn, 86, 437
-ENTRY cn, 86, 936
-
-; ------------------------------------------------------------------------------
-; Turkey - Country Code 90
-; Turkish
-; ------------------------------------------------------------------------------
-ENTRY tr, 90, 857
-ENTRY tr, 90, 850
-ENTRY tr, 90, 858
-
-; ------------------------------------------------------------------------------
-; India - Country Code 91
-; Indian English
-; ------------------------------------------------------------------------------
-ENTRY in, 91, 437
-
-; ------------------------------------------------------------------------------
-; Portugal - Country Code 351
-; Portuguese
-; ------------------------------------------------------------------------------
-ENTRY pt, 351, 860
-ENTRY pt, 351, 850
-ENTRY pt, 351, 858
-
-; ------------------------------------------------------------------------------
-; Luxembourg - Country Code 352
-; French/German (multilingual)
-; ------------------------------------------------------------------------------
-ENTRY lu, 352, 850
-ENTRY lu, 352, 858
-ENTRY lu, 352, 437
-
-; ------------------------------------------------------------------------------
-; Ireland - Country Code 353
-; English (Irish)
-; ------------------------------------------------------------------------------
-ENTRY ie, 353, 850
-ENTRY ie, 353, 858
-ENTRY ie, 353, 437
-
-; ------------------------------------------------------------------------------
-; Iceland - Country Code 354
-; Icelandic
-; ------------------------------------------------------------------------------
-ENTRY is, 354, 861
-ENTRY is, 354, 865 ; like 861 but with 0x9E/0x9F Thorn lowercase/uppercase
-ENTRY is, 354, 850
-ENTRY is, 354, 858
-
-; ------------------------------------------------------------------------------
-; Albania - Country Code 355
-; Albanian (Shqip)
-; ------------------------------------------------------------------------------
-ENTRY al, 355, 852
-ENTRY al, 355, 850
-ENTRY al, 355, 858
-
-; ------------------------------------------------------------------------------
-; Malta - Country Code 356
-; Maltese/English
-; ------------------------------------------------------------------------------
-ENTRY mt, 356, 850
-ENTRY mt, 356, 858
-ENTRY mt, 356, 437
-
-; ------------------------------------------------------------------------------
-; Cyprus - Country Code 357
-; Greek
-; ------------------------------------------------------------------------------
-ENTRY cy, 357, 869
-ENTRY cy, 357, 850
-ENTRY cy, 357, 858
-
-; ------------------------------------------------------------------------------
-; Finland - Country Code 358
-; Finnish
-; ------------------------------------------------------------------------------
-ENTRY fi, 358, 865
-ENTRY fi, 358, 858
-ENTRY fi, 358, 850
-ENTRY fi, 358, 437
-
-; ------------------------------------------------------------------------------
-; Bulgaria - Country Code 359
-; Bulgarian (Cyrillic)
-; ------------------------------------------------------------------------------
-ENTRY bg, 359, 855
-ENTRY bg, 359, 872
-ENTRY bg, 359, 850
-ENTRY bg, 359, 858
-ENTRY bg, 359, 866
-ENTRY bg, 359, 808
-ENTRY bg, 359, 849
-ENTRY bg, 359, 1131
-ENTRY bg, 359, 30033
-
-; ------------------------------------------------------------------------------
-; Lithuania - Country Code 370
-; Lithuanian (Baltic)
-; ------------------------------------------------------------------------------
-ENTRY lt, 370, 775
-ENTRY lt, 370, 850
-ENTRY lt, 370, 858
-
-; ------------------------------------------------------------------------------
-; Latvia - Country Code 371
-; Latvian (Baltic)
-; ------------------------------------------------------------------------------
-ENTRY lv, 371, 775
-ENTRY lv, 371, 850
-ENTRY lv, 371, 858
-
-; ------------------------------------------------------------------------------
-; Estonia - Country Code 372
-; Estonian (Baltic)
-; ------------------------------------------------------------------------------
-ENTRY ee, 372, 775
-ENTRY ee, 372, 850
-ENTRY ee, 372, 858
-
-; ------------------------------------------------------------------------------
-; Belarus - Country Code 375
-; Belarusian
-; ------------------------------------------------------------------------------
-ENTRY by, 375, 849
-ENTRY by, 375, 1131
-ENTRY by, 375, 850
-ENTRY by, 375, 858
-
-; ------------------------------------------------------------------------------
-; Ukraine - Country Code 380
-; Ukrainian
-; ------------------------------------------------------------------------------
-ENTRY ua, 380, 848
-ENTRY ua, 380, 855
-ENTRY ua, 380, 866
-ENTRY ua, 380, 1125
-
-; ------------------------------------------------------------------------------
-; Serbia - Country Code 381
-; Serbian (Latin and Cyrillic)
-; ------------------------------------------------------------------------------
-ENTRY rs, 381, 855  ; Serbian, Cyrillic
-ENTRY rs, 381, 872
-ENTRY rs, 381, 852  ; Serbian, Latin
-ENTRY rs, 381, 850
-ENTRY rs, 381, 858
-
-; ------------------------------------------------------------------------------
-; Montenegro - Country Code 382
-; Serbian (Montenegro uses Serbian language)
-; ------------------------------------------------------------------------------
-ENTRY me, 382, 852
-ENTRY me, 382, 855
-ENTRY me, 382, 872
-ENTRY me, 382, 850
-ENTRY me, 382, 858
-
-; ------------------------------------------------------------------------------
-; Kosovo - Country Code 383
-; Albanian/Serbian
-; ------------------------------------------------------------------------------
-ENTRY xk, 383, 852
-ENTRY xk, 383, 855
-ENTRY xk, 383, 872
-ENTRY xk, 383, 850
-ENTRY xk, 383, 858
-
-; ------------------------------------------------------------------------------
-; Croatia - Country Code 385
-; Croatian
-; ------------------------------------------------------------------------------
-ENTRY hr, 385, 852  ; Croatia, Croatian
-ENTRY hr, 385, 850
-ENTRY hr, 385, 858
-
-; ------------------------------------------------------------------------------
-; Slovenia - Country Code 386
-; Slovenian
-; ------------------------------------------------------------------------------
-ENTRY si, 386, 852  ; Slovenia
-ENTRY si, 386, 850
-ENTRY si, 386, 858
-
-; ------------------------------------------------------------------------------
-; Bosnia-Herzegovina - Country Code 387
-; Bosnian
-; ------------------------------------------------------------------------------
-ENTRY ba, 387, 852  ; Bosnia Herzegovina
-ENTRY ba, 387, 850
-ENTRY ba, 387, 858
-ENTRY ba, 387, 855  ; Bosnia Herzegovina, Cyrillic
-ENTRY ba, 387, 872
-
-; ------------------------------------------------------------------------------
-; North Macedonia - Country Code 389
-; Macedonian (Name updated from "Macedonia" per Prespa Agreement 2019)
-; ------------------------------------------------------------------------------
-ENTRY mk, 389, 855  ; North Macedonia
-ENTRY mk, 389, 872
-ENTRY mk, 389, 850
-ENTRY mk, 389, 858
-
-; ------------------------------------------------------------------------------
-; Czech Republic - Country Code 420
-; *** see Czechoslovakia (42) and Slovakia (421)
-; Czech
-; ------------------------------------------------------------------------------
-ENTRY cz, 420, 852
-ENTRY cz, 420, 850
-ENTRY cz, 420, 858
-
-; ------------------------------------------------------------------------------
-; Slovakia - Country Code 421
-; *** see Czechoslovakia (42) and Czech Republic (420)
-; Slovak
-; ------------------------------------------------------------------------------
-ENTRY sk, 421, 852
-ENTRY sk, 421, 850
-ENTRY sk, 421, 858
-
-; ------------------------------------------------------------------------------
-; Middle East - Country Code 785
-; *** xx is temporary place holder
-; Middle Eastern (Arabic)
-; ------------------------------------------------------------------------------
-ENTRY xx, 785, 858
-ENTRY xx, 785, 850
-ENTRY xx, 785, 864
-
-; ------------------------------------------------------------------------------
-; Israel - Country Code 972
-; Hebrew
-; ------------------------------------------------------------------------------
-ENTRY il, 972, 858
-ENTRY il, 972, 850
-ENTRY il, 972, 862
-
-; ==============================================================================
-; MULTILINGUAL COUNTRY ENTRIES (4x000 - 4x999)
-; ==============================================================================
-; These entries support multiple languages within a single country using
-; a special encoding: language_variant (0-9) + country_code
-; Format: 4xCCC where x = language variant (0-9), CCC = country code
-
-; Macro: MULTILANG_ENTRY
-; Creates a multilingual country entry structure
-; Parameters:
-;   %1 = 2-character language code (e.g., nl, fr, de)
-;   %2 = 2-character country code (e.g., BE, ES, CH)
-;   %3 = numerical country code (e.g., 30)
-;   %4 = language variant number (0-9, prepended to country code as 4#)
-;   %5 = codepage number (e.g., 850), pad with 0s e.g. 001 if less than 3 digits
-;
-; Example: MULTILANG_ENTRY fr, BE, 032, 1, 850
-;   produces: __fr_BE_850 dw 12, 41032, 850, 0, 0
-;             dd _fr_BE_850
-
-%macro MULTILANG_ENTRY 5
-__%1_%2_%5 dw 12, 4%4%3, %5, 0, 0
-           dd _%1_%2_%5
-%endmacro
-
-; ------------------------------------------------------------------------------
-; Belgium - Country Code 32 (Multilingual variants: 40032, 41032, 42032)
-; Dutch (nl_BE), French (fr_BE), German (de_BE)
-; ------------------------------------------------------------------------------
-MULTILANG_ENTRY nl, BE, 032, 0, 850  ; Dutch (Flemish) Belgium
-MULTILANG_ENTRY nl, BE, 032, 0, 858
-MULTILANG_ENTRY nl, BE, 032, 0, 437
-
-MULTILANG_ENTRY fr, BE, 032, 1, 850  ; French Belgium
-MULTILANG_ENTRY fr, BE, 032, 1, 858
-MULTILANG_ENTRY fr, BE, 032, 1, 437
-
-MULTILANG_ENTRY de, BE, 032, 2, 850  ; German Belgium
-MULTILANG_ENTRY de, BE, 032, 2, 858
-MULTILANG_ENTRY de, BE, 032, 2, 437
-
-; ------------------------------------------------------------------------------
-; Spain - Country Code 34 (Multilingual variants: 40034, 41034, 42034, 43034)
-; Spanish (es_ES), Catalan (ca_ES), Galician (gl_ES), Basque (eu_ES)
-; ------------------------------------------------------------------------------
-MULTILANG_ENTRY es, ES, 034, 0, 850  ; Spanish (Castilian) Spain
-MULTILANG_ENTRY es, ES, 034, 0, 858
-MULTILANG_ENTRY es, ES, 034, 0, 437
-
-MULTILANG_ENTRY ca, ES, 034, 1, 850  ; Catalan Spain
-MULTILANG_ENTRY ca, ES, 034, 1, 858
-MULTILANG_ENTRY ca, ES, 034, 1, 437
-
-MULTILANG_ENTRY gl, ES, 034, 2, 850  ; Galician Spain
-MULTILANG_ENTRY gl, ES, 034, 2, 858
-MULTILANG_ENTRY gl, ES, 034, 2, 437
-
-MULTILANG_ENTRY eu, ES, 034, 3, 850  ; Basque Spain
-MULTILANG_ENTRY eu, ES, 034, 3, 858
-MULTILANG_ENTRY eu, ES, 034, 3, 437
-
-; ------------------------------------------------------------------------------
-; Switzerland - Country Code 41 (Multilingual variants: 40041, 41041, 42041)
-; German (de_CH), French (fr_CH), Italian (it_CH)
-; ------------------------------------------------------------------------------
-MULTILANG_ENTRY de, CH, 041, 0, 858  ; German Switzerland
-MULTILANG_ENTRY de, CH, 041, 0, 850
-MULTILANG_ENTRY de, CH, 041, 0, 437
-
-MULTILANG_ENTRY fr, CH, 041, 1, 858  ; French Switzerland
-MULTILANG_ENTRY fr, CH, 041, 1, 850
-MULTILANG_ENTRY fr, CH, 041, 1, 437
-
-MULTILANG_ENTRY it, CH, 041, 2, 858  ; Italian Switzerland
-MULTILANG_ENTRY it, CH, 041, 2, 850
-MULTILANG_ENTRY it, CH, 041, 2, 437
-
-; ==============================================================================
-; SECTION 3: SUBFUNCTION HEADERS
-; ==============================================================================
-;
-; Each country/codepage entry has a subfunction header that lists
-; available subfunctions. 
-; Structure:
-;   - Word: Number of subfunctions
-;   Then for each subfunction:
-;     - Word: Entry size (always 6)
-;     - Word: Subfunction ID (1,2,3,4,5,6,7,35)
-;     - DWord: Offset to data
-;
-; Subfunction IDs:
-;   1  = Country info (date/time/currency format)
-;   2  = Uppercase table
-;   3  = Lowercase table (optional, if different from uppercase)
-;   4  = Filename uppercase table
-;   5  = Filename character table
-;   6  = Collating sequence table (sorting order)
-;   7  = DBCS (Double Byte Character Set) table
-;   35 = Yes/No prompt characters
-
-; ------------------------------------------------------------------------------
-; SUBFUNCTION HEADER MACROS
-; ------------------------------------------------------------------------------
-
-; Macro: SUBFUNC_HEADER
-; Creates a standard subfunction header (7 subfunctions, no lowercase table)
-; Parameters:
-;   %1 = ISO country code (e.g., us, gr, nl)
-;   %2 = codepage (e.g., 437, 850, 858)
-;   %3 = collating sequence label (e.g., en_collate_437)
-;   %4 = yes/no table label (e.g., en_yn, gr_yn_869)
-;   %5 = DBCS table label (optional, defaults to dbcs_empty)
-;
-; Produces 7 subfunction entries (1,2,4,5,6,7,35)
-
-%macro SUBFUNC_HEADER 4-5 dbcs_empty
-_%1_%2 dw 7
-       dw 6,1
-         dd %1_%2
-       dw 6,2
-         dd ucase_%2
-       dw 6,4
-         dd ucase_%2
-       dw 6,5
-         dd fchar
-       dw 6,6
-         dd %3
-       dw 6,7
-         dd %5
-       dw 6,35
-         dd %4
-%endmacro
-
-%macro OLD_SUBFUNC_HEADER 4-5 dbcs_empty
-%ifdef OBSOLETE
-    SUBFUNC_HEADER %1 %2 %3 %4 %5
-%endif
-%endmacro
-
-; Macro: SUBFUNC_HEADER_LCASE
-; Creates a subfunction header with lowercase table (8 subfunctions)
-; Parameters:
-;   %1 = ISO country code (e.g., ru, bg, ua)
-;   %2 = codepage (e.g., 866, 808, 849)
-;   %3 = lowercase table label (e.g., lcase_866)
-;   %4 = collating sequence label (e.g., ru_collate_866)
-;   %5 = yes/no table label (e.g., ru_yn_866)
-;   %6 = DBCS table label (optional, defaults to dbcs_empty)
-;
-; Produces 8 subfunction entries (1,2,3,4,5,6,7,35)
-
-%macro SUBFUNC_HEADER_LCASE 5-6 dbcs_empty
-_%1_%2 dw 8
-       dw 6,1
-         dd %1_%2
-       dw 6,2
-         dd ucase_%2
-       dw 6,3
-         dd %3
-       dw 6,4
-         dd ucase_%2
-       dw 6,5
-         dd fchar
-       dw 6,6
-         dd %4
-       dw 6,7
-         dd %6
-       dw 6,35
-         dd %5
-%endmacro
-
-; ------------------------------------------------------------------------------
-; US (United States) - Country Code 1
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER us, 437, en_collate_437, en_yn
-SUBFUNC_HEADER us, 850, en_collate_850, en_yn
-SUBFUNC_HEADER us, 858, en_collate_858, en_yn
-
-; ------------------------------------------------------------------------------
-; Canada - Country Code 2
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER ca, 863, fr_collate_863, fr_yn
-SUBFUNC_HEADER ca, 850, fr_collate_850, fr_yn
-SUBFUNC_HEADER ca, 858, fr_collate_858, fr_yn
-
-; ------------------------------------------------------------------------------
-; Latin America - Country Code 3
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER la, 850, es_collate_850, es_yn
-SUBFUNC_HEADER la, 858, es_collate_858, es_yn
-SUBFUNC_HEADER la, 437, es_collate_437, es_yn
-
-; ------------------------------------------------------------------------------
-; Russia - Country Code 7
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER_LCASE ru, 866, lcase_866, ru_collate_866, ru_yn_866
-SUBFUNC_HEADER_LCASE ru, 808, lcase_808, ru_collate_808, ru_yn_808
-SUBFUNC_HEADER ru, 855, ru_collate_855, ru_yn_855
-SUBFUNC_HEADER ru, 872, ru_collate_872, ru_yn_872
-SUBFUNC_HEADER ru, 852, ru_collate_852, ru_yn
-SUBFUNC_HEADER ru, 850, ru_collate_850, ru_yn
-SUBFUNC_HEADER ru, 858, ru_collate_858, ru_yn
-SUBFUNC_HEADER ru, 437, ru_collate_437, ru_yn
-
-; ------------------------------------------------------------------------------
-; South Africa - Country Code 27
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER za, 858, en_collate_858, en_yn
-SUBFUNC_HEADER za, 850, en_collate_850, en_yn
-SUBFUNC_HEADER za, 437, en_collate_437, en_yn
-
-; ------------------------------------------------------------------------------
-; Greece - Country Code 30
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER gr, 869, gr_collate_869, gr_yn_869
-SUBFUNC_HEADER gr, 737, gr_collate_737, gr_yn_737
-SUBFUNC_HEADER gr, 850, gr_collate_850, gr_yn
-SUBFUNC_HEADER gr, 858, gr_collate_858, gr_yn
-
-; ------------------------------------------------------------------------------
-; Netherlands - Country Code 31
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER nl, 850, nl_collate_850, nl_yn
-SUBFUNC_HEADER nl, 858, nl_collate_858, nl_yn
-SUBFUNC_HEADER nl, 437, nl_collate_437, nl_yn
-
-; ------------------------------------------------------------------------------
-; Belgium - Country Code 32
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER be, 850, be_collate_850, nl_yn
-SUBFUNC_HEADER be, 858, be_collate_858, nl_yn
-SUBFUNC_HEADER be, 437, be_collate_437, nl_yn
-
-; ------------------------------------------------------------------------------
-; France - Country Code 33
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER fr, 850, fr_collate_850, fr_yn
-SUBFUNC_HEADER fr, 858, fr_collate_858, fr_yn
-SUBFUNC_HEADER fr, 437, fr_collate_437, fr_yn
-
-; ------------------------------------------------------------------------------
-; Spain - Country Code 34
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER es, 850, es_collate_850, es_yn
-SUBFUNC_HEADER es, 858, es_collate_858, es_yn
-SUBFUNC_HEADER es, 437, es_collate_437, es_yn
-
-; ------------------------------------------------------------------------------
-; Hungary - Country Code 36
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER hu, 852, hu_collate_852, hu_yn
-SUBFUNC_HEADER hu, 850, hu_collate_850, hu_yn
-SUBFUNC_HEADER hu, 858, hu_collate_858, hu_yn
-
-; ------------------------------------------------------------------------------
-; Yugoslavia - Country Code 38 [OBSOLETE]
-; ------------------------------------------------------------------------------
-OLD_SUBFUNC_HEADER yu, 852, sh_collate_852, sh_yn
-OLD_SUBFUNC_HEADER yu, 855, sh_collate_855, sh_yn_855
-OLD_SUBFUNC_HEADER yu, 872, sh_collate_872, sh_yn_872
-OLD_SUBFUNC_HEADER yu, 850, sh_collate_850, sh_yn
-OLD_SUBFUNC_HEADER yu, 858, sh_collate_858, sh_yn
-
-; ------------------------------------------------------------------------------
-; Italy - Country Code 39
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER it, 850, it_collate_850, it_yn
-SUBFUNC_HEADER it, 858, it_collate_858, it_yn
-SUBFUNC_HEADER it, 437, it_collate_437, it_yn
+COUNTRY 39, 437, it_collate_437, it_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ".", 0, 2, _24
+COUNTRY 39, 850, it_collate_850, it_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ".", 0, 2, _24
+COUNTRY 39, 858, it_collate_858, it_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ".", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Romania - Country Code 40
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER ro, 852, ro_collate_852, ro_yn
-SUBFUNC_HEADER ro, 850, ro_collate_850, ro_yn
-SUBFUNC_HEADER ro, 858, ro_collate_858, ro_yn
+COUNTRY 40, 850, ro_collate_850, ro_yn, YMD, "L", "e", "i", 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 40, 852, ro_collate_852, ro_yn, YMD, "L", "e", "i", 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 40, 858, ro_collate_858, ro_yn, YMD, "L", "e", "i", 0, 0, ".", ",", "-", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Switzerland - Country Code 41
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER ch, 850, ch_collate_850, de_yn
-SUBFUNC_HEADER ch, 858, ch_collate_858, de_yn
-SUBFUNC_HEADER ch, 437, ch_collate_437, de_yn
+COUNTRY    41,    437, ch_collate_437, de_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY    41,    850, ch_collate_850, de_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY    41,    858, ch_collate_858, de_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+
+COUNTRY_ML 41, 0, 437, de_collate_437, de_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24 ; German
+COUNTRY_ML 41, 0, 850, de_collate_850, de_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY_ML 41, 0, 858, de_collate_858, de_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY_ML 41, 1, 437, fr_collate_437, fr_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24 ; French
+COUNTRY_ML 41, 1, 850, fr_collate_850, fr_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY_ML 41, 1, 858, fr_collate_858, fr_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY_ML 41, 2, 437, it_collate_437, it_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24 ; Italian
+COUNTRY_ML 41, 2, 850, it_collate_850, it_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY_ML 41, 2, 858, it_collate_858, it_yn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Czechoslovakia - Country Code 42
-; *** see Czech Republic (420) and Slovakia (421)
+; [OBSOLETE, see Czech Republic 420 and Slovakia 421]
 ; ------------------------------------------------------------------------------
-;OLD_SUBFUNC_HEADER cz, 852, cz_collate_852, cz_yn
-;OLD_SUBFUNC_HEADER cz, 850, cz_collate_850, cz_yn
-;OLD_SUBFUNC_HEADER cz, 858, cz_collate_858, cz_yn
+OLD_COUNTRY 42, 850, cz_collate_850, cz_yn, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 42, 852, cz_collate_852, cz_yn, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 42, 858, cz_collate_858, cz_yn, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Austria - Country Code 43
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER at, 850, de_collate_850, de_yn
-SUBFUNC_HEADER at, 858, de_collate_858, de_yn
-SUBFUNC_HEADER at, 437, de_collate_437, de_yn
+COUNTRY 43, 437, de_collate_437, de_yn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ".", 0, 2, _24
+COUNTRY 43, 850, de_collate_850, de_yn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ".", 0, 2, _24
+COUNTRY 43, 858, de_collate_858, de_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ".", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; United Kingdom - Country Code 44
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER gb, 850, en_collate_850, en_yn
-SUBFUNC_HEADER gb, 858, en_collate_858, en_yn
-SUBFUNC_HEADER gb, 437, en_collate_437, en_yn
+COUNTRY 44, 437, en_collate_437, en_yn, DMY, 9Ch, 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 44, 850, en_collate_850, en_yn, DMY, 9Ch, 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 44, 858, en_collate_858, en_yn, DMY, 9Ch, 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Denmark - Country Code 45
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER dk, 865, dk_collate_865, dk_yn
-SUBFUNC_HEADER dk, 850, dk_collate_850, dk_yn
-SUBFUNC_HEADER dk, 858, dk_collate_858, dk_yn
+COUNTRY 45, 850, dk_collate_850, dk_yn, DMY, "k", "r", 0, 0, 0, ".", ",", "-", ".", 2, 2, _24
+COUNTRY 45, 858, dk_collate_858, dk_yn, DMY, "k", "r", 0, 0, 0, ".", ",", "-", ".", 2, 2, _24
+COUNTRY 45, 865, dk_collate_865, dk_yn, DMY, "k", "r", 0, 0, 0, ".", ",", "-", ".", 2, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Sweden - Country Code 46
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER se, 865, se_collate_865, se_yn
-SUBFUNC_HEADER se, 850, se_collate_850, se_yn
-SUBFUNC_HEADER se, 858, se_collate_858, se_yn
-SUBFUNC_HEADER se, 437, se_collate_437, se_yn
+COUNTRY 46, 437, se_collate_437, se_yn, YMD, "K", "r", 0, 0, 0, " ", ",", "-", ".", 3, 2, _24
+COUNTRY 46, 850, se_collate_850, se_yn, YMD, "K", "r", 0, 0, 0, " ", ",", "-", ".", 3, 2, _24
+COUNTRY 46, 858, se_collate_858, se_yn, YMD, "K", "r", 0, 0, 0, " ", ",", "-", ".", 3, 2, _24
+COUNTRY 46, 865, se_collate_865, se_yn, YMD, "K", "r", 0, 0, 0, " ", ",", "-", ".", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Norway - Country Code 47
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER no, 865, no_collate_865, no_yn
-SUBFUNC_HEADER no, 850, no_collate_850, no_yn
-SUBFUNC_HEADER no, 858, no_collate_858, no_yn
+COUNTRY 47, 850, no_collate_850, no_yn, DMY, "K", "r", 0, 0, 0, ".", ",", ".", ":", 2, 2, _24
+COUNTRY 47, 858, no_collate_858, no_yn, DMY, "K", "r", 0, 0, 0, ".", ",", ".", ":", 2, 2, _24
+COUNTRY 47, 865, no_collate_865, no_yn, DMY, "K", "r", 0, 0, 0, ".", ",", ".", ":", 2, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Poland - Country Code 48
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER pl, 852, pl_collate_852, pl_yn
-SUBFUNC_HEADER pl, 850, pl_collate_850, pl_yn
-SUBFUNC_HEADER pl, 858, pl_collate_858, pl_yn
+COUNTRY 48, 850, pl_collate_850, pl_yn, YMD, "P", "L", "N", 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 48, 852, pl_collate_852, pl_yn, YMD, "Z", 88h,   0, 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 48, 858, pl_collate_858, pl_yn, YMD, "P", "L", "N", 0, 0, ".", ",", "-", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Germany - Country Code 49
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER de, 850, de_collate_850, de_yn
-SUBFUNC_HEADER de, 858, de_collate_858, de_yn
-SUBFUNC_HEADER de, 437, de_collate_437, de_yn
+COUNTRY 49, 437, de_collate_437, de_yn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 49, 850, de_collate_850, de_yn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 49, 858, de_collate_858, de_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Mexico - Country Code 52
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER mx, 850, es_collate_850, es_yn
-SUBFUNC_HEADER mx, 858, es_collate_858, es_yn
-SUBFUNC_HEADER mx, 437, es_collate_437, es_yn
+COUNTRY 52, 437, es_collate_437, es_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24 ; Currency: $ - Mexican Peso
+COUNTRY 52, 850, es_collate_850, es_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 52, 858, es_collate_858, es_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Argentina - Country Code 54
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER ar, 437, es_collate_437, es_yn
-SUBFUNC_HEADER ar, 850, es_collate_850, es_yn
-SUBFUNC_HEADER ar, 858, es_collate_858, es_yn
+COUNTRY 54, 437, es_collate_437, es_yn, DMY, "$", 0, 0, 0, 0, ".", ",", "/", ".", 0, 2, _24
+COUNTRY 54, 850, es_collate_850, es_yn, DMY, "$", 0, 0, 0, 0, ".", ",", "/", ".", 0, 2, _24
+COUNTRY 54, 858, es_collate_858, es_yn, DMY, "$", 0, 0, 0, 0, ".", ",", "/", ".", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Brazil - Country Code 55
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER br, 850, pt_collate_850, pt_yn
-SUBFUNC_HEADER br, 858, pt_collate_858, pt_yn
-SUBFUNC_HEADER br, 437, pt_collate_437, pt_yn
+COUNTRY 55, 437, pt_collate_437, pt_yn, DMY, "R", "$", 0, 0, 0, ".", ",", "/", ":", 2, 2, _24
+COUNTRY 55, 850, pt_collate_850, pt_yn, DMY, "R", "$", 0, 0, 0, ".", ",", "/", ":", 2, 2, _24
+COUNTRY 55, 858, pt_collate_858, pt_yn, DMY, "R", "$", 0, 0, 0, ".", ",", "/", ":", 2, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Malaysia - Country Code 60
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER my, 437, en_collate_437, en_yn
+COUNTRY 60, 437, en_collate_437, en_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12
 
 ; ------------------------------------------------------------------------------
 ; Australia - Country Code 61
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER au, 437, en_collate_437, en_yn
-SUBFUNC_HEADER au, 850, en_collate_850, en_yn
-SUBFUNC_HEADER au, 858, en_collate_858, en_yn
+COUNTRY 61, 437, en_collate_437, en_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12
+COUNTRY 61, 850, en_collate_850, en_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12
+COUNTRY 61, 858, en_collate_858, en_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12
 
 ; ------------------------------------------------------------------------------
 ; Indonesia - Country Code 62
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER id, 850, en_collate_850, id_yn
-SUBFUNC_HEADER id, 437, en_collate_437, id_yn
+COUNTRY 62, 437, en_collate_437, id_yn, DMY, "R", "p", 0, 0, 0, ".", ",", "/", ":", 0, 0, _24
+COUNTRY 62, 850, en_collate_850, id_yn, DMY, "R", "p", 0, 0, 0, ".", ",", "/", ":", 0, 0, _24
 
 ; ------------------------------------------------------------------------------
 ; Philippines - Country Code 63
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER ph, 850, en_collate_850, ph_yn
-SUBFUNC_HEADER ph, 437, en_collate_437, ph_yn
+COUNTRY 63, 437, en_collate_437, ph_yn, MDY, "P", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12
+COUNTRY 63, 850, en_collate_850, ph_yn, MDY, "P", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12
 
 ; ------------------------------------------------------------------------------
 ; New Zealand - Country Code 64
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER nz, 850, en_collate_850, en_yn
-SUBFUNC_HEADER nz, 858, en_collate_858, en_yn
-SUBFUNC_HEADER nz, 437, en_collate_437, en_yn
+COUNTRY 64, 437, en_collate_437, en_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24 ; Currency: $ - New Zealand Dollar
+COUNTRY 64, 850, en_collate_850, en_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 64, 858, en_collate_858, en_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Singapore - Country Code 65
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER sg, 437, en_collate_437, en_yn
+COUNTRY 65, 437, en_collate_437, en_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12
 
 ; ------------------------------------------------------------------------------
 ; Thailand - Country Code 66
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER th, 874, th_collate_874, en_yn
-SUBFUNC_HEADER th, 850, en_collate_850, en_yn
-SUBFUNC_HEADER th, 437, en_collate_437, en_yn
+COUNTRY 66, 437, en_collate_437, en_yn, DMY, "B", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 66, 850, en_collate_850, en_yn, DMY, "B", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 66, 874, th_collate_874, en_yn, DMY, "B", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Japan - Country Code 81
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER jp, 437, en_collate_437, en_yn  ; Japanese MS-DOS uses "Y" and "N" - Yuki
-SUBFUNC_HEADER jp, 932, jp_collate_932, en_yn, jp_dbcs_932
+COUNTRY      81, 437, en_collate_437, en_yn,              YMD, 9Dh, 0, 0, 0, 0, ",", ".", "-", ":", 0, 0, _24
+COUNTRY_DBCS 81, 932, jp_collate_932, en_yn, jp_dbcs_932, YMD, 5Ch, 0, 0, 0, 0, ",", ".", "-", ":", 0, 0, _24
 
 ; ------------------------------------------------------------------------------
 ; South Korea - Country Code 82
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER kr, 437, en_collate_437, kr_yn
-SUBFUNC_HEADER kr, 934, kr_collate_934, kr_yn, kr_dbcs_934
+COUNTRY      82, 437, en_collate_437, kr_yn,              YMD, "K", "R", "W", 0, 0, ",", ".", ".", ":", 0, 0, _24
+COUNTRY_DBCS 82, 934, kr_collate_934, kr_yn, kr_dbcs_934, YMD, 5Ch,     0, 0, 0, 0, ",", ".", ".", ":", 0, 0, _24
 
 ; ------------------------------------------------------------------------------
 ; Vietnam - Country Code 84
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER vn, 1258, vn_collate_1258, vn_yn
-SUBFUNC_HEADER vn, 850, en_collate_850, vn_yn
-SUBFUNC_HEADER vn, 437, en_collate_437, vn_yn
+COUNTRY 84,  437,  en_collate_437, vn_yn, DMY, "d", 0, 0, 0, 0, ".", ",", "/", ":", 3, 0, _24
+COUNTRY 84,  850,  en_collate_850, vn_yn, DMY, "d", 0, 0, 0, 0, ".", ",", "/", ":", 3, 0, _24
+COUNTRY 84, 1258, vn_collate_1258, vn_yn, DMY, "d", 0, 0, 0, 0, ".", ",", "/", ":", 3, 0, _24
 
 ; ------------------------------------------------------------------------------
 ; China - Country Code 86
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER cn, 437, en_collate_437, cn_yn
-SUBFUNC_HEADER cn, 936, cn_collate_936, cn_yn_936, cn_dbcs_936
+COUNTRY      86, 437, en_collate_437, cn_yn,                  YMD, 9Dh, 0, 0, 0, 0, ",", ".", ".", ":", 0, 2, _12
+COUNTRY_DBCS 86, 936, cn_collate_936, cn_yn_936, cn_dbcs_936, YMD, 5Ch, 0, 0, 0, 0, ",", ".", ".", ":", 0, 2, _12
 
 ; ------------------------------------------------------------------------------
-; Turkey - Country Code 90
+; Turkiye - Country Code 90
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER tr, 857, tr_collate_857, tr_yn
-SUBFUNC_HEADER tr, 850, tr_collate_850, tr_yn
-SUBFUNC_HEADER tr, 858, tr_collate_858, tr_yn
+COUNTRY 90, 850, tr_collate_850, tr_yn, DMY, "T", "R", "Y", 0, 0, ".", ",", "/", ":", 4, 2, _24
+COUNTRY 90, 857, tr_collate_857, tr_yn, DMY, "T", "R", "Y", 0, 0, ".", ",", "/", ":", 4, 2, _24
+COUNTRY 90, 858, tr_collate_858, tr_yn, DMY, "T", "R", "Y", 0, 0, ".", ",", "/", ":", 4, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; India - Country Code 91
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER in, 437, en_collate_437, en_yn
+COUNTRY 91, 437, en_collate_437, en_yn, DMY, "R", "s", 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Portugal - Country Code 351
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER pt, 860, pt_collate_860, pt_yn
-SUBFUNC_HEADER pt, 850, pt_collate_850, pt_yn
-SUBFUNC_HEADER pt, 858, pt_collate_858, pt_yn
+COUNTRY 351, 850, pt_collate_850, pt_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 351, 858, pt_collate_858, pt_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 351, 860, pt_collate_860, pt_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "-", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Luxembourg - Country Code 352
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER lu, 850, fr_collate_850, fr_yn
-SUBFUNC_HEADER lu, 858, fr_collate_858, fr_yn
-SUBFUNC_HEADER lu, 437, fr_collate_437, fr_yn
+COUNTRY 352, 437, fr_collate_437, fr_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY 352, 850, fr_collate_850, fr_yn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY 352, 858, fr_collate_858, fr_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Ireland - Country Code 353
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER ie, 850, en_collate_850, en_yn
-SUBFUNC_HEADER ie, 858, en_collate_858, en_yn
-SUBFUNC_HEADER ie, 437, en_collate_437, en_yn
+COUNTRY 353, 437, en_collate_437, en_yn, DMY, "E", "U", "R", 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 353, 850, en_collate_850, en_yn, DMY, "E", "U", "R", 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 353, 858, en_collate_858, en_yn, DMY, 0D5h,    0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Iceland - Country Code 354
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER is, 861, is_collate_861, is_yn
-SUBFUNC_HEADER is, 865, is_collate_865, is_yn
-SUBFUNC_HEADER is, 850, is_collate_850, is_yn
-SUBFUNC_HEADER is, 858, is_collate_858, is_yn
+COUNTRY 354, 850, is_collate_850, is_yn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
+COUNTRY 354, 858, is_collate_858, is_yn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
+COUNTRY 354, 861, is_collate_861, is_yn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
+COUNTRY 354, 865, is_collate_865, is_yn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
 
 ; ------------------------------------------------------------------------------
 ; Albania - Country Code 355
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER al, 852, al_collate_852, al_yn
-SUBFUNC_HEADER al, 850, en_collate_850, al_yn
-SUBFUNC_HEADER al, 858, en_collate_858, al_yn
+COUNTRY 355, 850, en_collate_850, al_yn, DMY, "L", "e", "k", 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 355, 852, al_collate_852, al_yn, DMY, "L", "e", "k", 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 355, 858, en_collate_858, al_yn, DMY, "L", "e", "k", 0, 0, ".", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Malta - Country Code 356
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER mt, 850, en_collate_850, mt_yn
-SUBFUNC_HEADER mt, 858, en_collate_858, mt_yn
-SUBFUNC_HEADER mt, 437, en_collate_437, mt_yn
+COUNTRY 356, 437, en_collate_437, mt_yn, DMY, "E", "U", "R", 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 356, 850, en_collate_850, mt_yn, DMY, "E", "U", "R", 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 356, 858, en_collate_858, mt_yn, DMY, 0D5h,    0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Cyprus - Country Code 357
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER cy, 869, gr_collate_869, cy_yn_869
-SUBFUNC_HEADER cy, 850, en_collate_850, cy_yn
-SUBFUNC_HEADER cy, 858, en_collate_858, cy_yn
+COUNTRY 357, 850, en_collate_850, cy_yn,     DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY 357, 858, en_collate_858, cy_yn,     DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY 357, 869, gr_collate_869, cy_yn_869, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Finland - Country Code 358
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER fi, 865, fi_collate_865, fi_yn
-SUBFUNC_HEADER fi, 850, fi_collate_850, fi_yn
-SUBFUNC_HEADER fi, 858, fi_collate_858, fi_yn
-SUBFUNC_HEADER fi, 437, fi_collate_437, fi_yn
+COUNTRY 358, 437, fi_collate_437, fi_yn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ".", 3, 2, _24
+COUNTRY 358, 850, fi_collate_850, fi_yn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ".", 3, 2, _24
+COUNTRY 358, 858, fi_collate_858, fi_yn, DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ".", 3, 2, _24
+COUNTRY 358, 865, fi_collate_865, fi_yn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ".", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Bulgaria - Country Code 359
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER bg, 855, bg_collate_855, bg_yn_855
-SUBFUNC_HEADER bg, 872, bg_collate_872, bg_yn_872
-SUBFUNC_HEADER bg, 850, bg_collate_850, bg_yn
-SUBFUNC_HEADER bg, 858, bg_collate_858, bg_yn
-SUBFUNC_HEADER_LCASE bg, 866, lcase_866, bg_collate_866, bg_yn_866
-SUBFUNC_HEADER_LCASE bg, 808, lcase_808, bg_collate_808, bg_yn_808
-SUBFUNC_HEADER_LCASE bg, 849, lcase_849, bg_collate_849, bg_yn_849
-SUBFUNC_HEADER_LCASE bg, 1131, lcase_1131, bg_collate_1131, bg_yn_1131
-SUBFUNC_HEADER_LCASE bg, 30033, lcase_30033, bg_collate_30033, bg_yn_30033
+COUNTRY_LCASE   359, 808, bg_collate_808,   bg_yn_808,   lcase_808,   DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24 ; 2026 Euro replaced BGN
+COUNTRY_LCASE   359, 849, bg_collate_849,   bg_yn_849,   lcase_849,   DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY         359, 850, bg_collate_850,   bg_yn,                    DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY         359, 855, bg_collate_855,   bg_yn_855,                DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY         359, 858, bg_collate_858,   bg_yn,                    DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY_LCASE   359, 866, bg_collate_866,   bg_yn_866,   lcase_866,   DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY         359, 872, bg_collate_872,   bg_yn_872,                DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY_LCASE  359, 1131, bg_collate_1131,  bg_yn_1131,  lcase_1131,  DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY_LCASE 359, 30033, bg_collate_30033, bg_yn_30033, lcase_30033, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Lithuania - Country Code 370
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER lt, 775, lt_collate_775, lt_yn
-SUBFUNC_HEADER lt, 850, lt_collate_850, lt_yn
-SUBFUNC_HEADER lt, 858, lt_collate_858, lt_yn
+COUNTRY 370, 775, lt_collate_775, lt_yn, YMD, "E", "U", "R", 0, 0, " ", ",", "-", ":", 3, 2, _24
+COUNTRY 370, 850, lt_collate_850, lt_yn, YMD, "E", "U", "R", 0, 0, " ", ",", "-", ":", 3, 2, _24
+COUNTRY 370, 858, lt_collate_858, lt_yn, YMD, 0D5h,    0, 0, 0, 0, " ", ",", "-", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Latvia - Country Code 371
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER lv, 775, lv_collate_775, lv_yn
-SUBFUNC_HEADER lv, 850, lv_collate_850, lv_yn
-SUBFUNC_HEADER lv, 858, lv_collate_858, lv_yn
+COUNTRY 371, 775, lv_collate_775, lv_yn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 371, 850, lv_collate_850, lv_yn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 371, 858, lv_collate_858, lv_yn, DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Estonia - Country Code 372
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER ee, 775, ee_collate_775, ee_yn
-SUBFUNC_HEADER ee, 850, ee_collate_850, ee_yn
-SUBFUNC_HEADER ee, 858, ee_collate_858, ee_yn
+COUNTRY 372, 775, ee_collate_775, ee_yn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 372, 850, ee_collate_850, ee_yn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 372, 858, ee_collate_858, ee_yn, DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Belarus - Country Code 375
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER_LCASE by, 849, lcase_849, by_collate_849, by_yn_849
-SUBFUNC_HEADER_LCASE by, 1131, lcase_1131, by_collate_1131, by_yn_1131
-SUBFUNC_HEADER by, 850, by_collate_850, by_yn
-SUBFUNC_HEADER by, 858, by_collate_858, by_yn
+COUNTRY_LCASE 375,  849, by_collate_849,  by_yn_849, lcase_849,   DMY, 0E0h, 0E3h, 0A1h, ".", 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY       375,  850, by_collate_850,  by_yn,                  DMY, "B", "Y", "R",      0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY       375,  858, by_collate_858,  by_yn,                  DMY, "B", "Y", "R",      0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY_LCASE 375, 1131, by_collate_1131, by_yn_1131, lcase_1131, DMY, 0E0h, 0E3h, 0A1h, ".", 0, " ", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Ukraine - Country Code 380
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER_LCASE ua, 848, lcase_848, ua_collate_848, ua_yn_848
-SUBFUNC_HEADER_LCASE ua, 855, lcase_855, ua_collate_855, ua_yn_848
-SUBFUNC_HEADER_LCASE ua, 1125, lcase_1125, ua_collate_1125, ua_yn_1125
-SUBFUNC_HEADER_LCASE ua, 866, lcase_866, ua_collate_866, ua_yn_1125
+COUNTRY_LCASE 380,  848, ua_collate_848,  ua_yn_848,  lcase_848,  DMY, 0A3h, 0E0h, 0ADh, ".", 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY_LCASE 380,  855, ua_collate_855,  ua_yn_848,  lcase_855,  DMY, 0A3h, 0E0h, 0ADh, ".", 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY_LCASE 380,  866, ua_collate_866,  ua_yn_1125, lcase_866,  DMY, 0A3h, 0E0h, 0ADh, ".", 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY_LCASE 380, 1125, ua_collate_1125, ua_yn_1125, lcase_1125, DMY, 0A3h, 0E0h, 0ADh, ".", 0, " ", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Serbia - Country Code 381
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER rs, 852, sh_collate_852, sh_yn
-SUBFUNC_HEADER rs, 855, sh_collate_855, sh_yn_855
-SUBFUNC_HEADER rs, 872, sh_collate_872, sh_yn_872
-SUBFUNC_HEADER rs, 850, sh_collate_850, sh_yn
-SUBFUNC_HEADER rs, 858, sh_collate_858, sh_yn
+COUNTRY 381, 850, sh_collate_850, sh_yn,     DMY, "D", "i", "n",    0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 381, 852, sh_collate_852, sh_yn,     DMY, "D", "i", "n",    0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 381, 855, sh_collate_855, sh_yn_855, DMY, 0A7h, 0B7h, 0D4h, 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 381, 858, sh_collate_858, sh_yn,     DMY, "D", "i", "n",    0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 381, 872, sh_collate_872, sh_yn_872, DMY, 0A7h, 0B7h, 0D4h, 0, 0, ".", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Montenegro - Country Code 382
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER me, 852, sh_collate_852, sh_yn
-SUBFUNC_HEADER me, 855, sh_collate_855, sh_yn_855
-SUBFUNC_HEADER me, 872, sh_collate_872, sh_yn_855
-SUBFUNC_HEADER me, 850, sh_collate_850, sh_yn
-SUBFUNC_HEADER me, 858, sh_collate_858, sh_yn
+COUNTRY 382, 850, sh_collate_850, sh_yn,     DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 382, 852, sh_collate_852, sh_yn,     DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 382, 855, sh_collate_855, sh_yn_855, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 382, 858, sh_collate_858, sh_yn,     DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 382, 872, sh_collate_872, sh_yn_855, DMY, 0CFh,    0, 0, 0, 0, ".", ",", ".", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Kosovo - Country Code 383
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER xk, 852, xk_collate_852, al_yn
-SUBFUNC_HEADER xk, 855, xk_collate_855, al_yn
-SUBFUNC_HEADER xk, 872, xk_collate_872, al_yn
-SUBFUNC_HEADER xk, 850, xk_collate_850, al_yn
-SUBFUNC_HEADER xk, 858, xk_collate_858, al_yn
+COUNTRY 383, 850, xk_collate_850, al_yn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 383, 852, xk_collate_852, al_yn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 383, 855, xk_collate_855, al_yn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 383, 858, xk_collate_858, al_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 383, 872, xk_collate_872, al_yn, DMY, 0CFh,    0, 0, 0, 0, ".", ",", ".", ":", 0, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Croatia - Country Code 385
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER hr, 852, hr_collate_852, hr_yn
-SUBFUNC_HEADER hr, 850, hr_collate_850, hr_yn
-SUBFUNC_HEADER hr, 858, hr_collate_858, hr_yn
+COUNTRY 385, 850, hr_collate_850, hr_yn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ".", 3, 2, _24
+COUNTRY 385, 852, hr_collate_852, hr_yn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ".", 3, 2, _24
+COUNTRY 385, 858, hr_collate_858, hr_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ".", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Slovenia - Country Code 386
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER si, 852, si_collate_852, si_yn
-SUBFUNC_HEADER si, 850, si_collate_850, si_yn
-SUBFUNC_HEADER si, 858, si_collate_858, si_yn
+COUNTRY 386, 850, si_collate_850, si_yn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 386, 852, si_collate_852, si_yn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 386, 858, si_collate_858, si_yn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Bosnia-Herzegovina - Country Code 387
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER ba, 852, sh_collate_852, sh_yn
-SUBFUNC_HEADER ba, 850, sh_collate_850, sh_yn
-SUBFUNC_HEADER ba, 858, sh_collate_858, sh_yn
-SUBFUNC_HEADER ba, 855, sh_collate_855, sh_yn_855
-SUBFUNC_HEADER ba, 872, sh_collate_872, sh_yn_872
+COUNTRY 387, 850, sh_collate_850, sh_yn,     DMY, "K", "M", 0, 0, 0, ".", ",", ".", ".", 1, 2, _24
+COUNTRY 387, 852, sh_collate_852, sh_yn,     DMY, "K", "M", 0, 0, 0, ".", ",", ".", ".", 1, 2, _24
+COUNTRY 387, 855, sh_collate_855, sh_yn_855, DMY, "K", "M", 0, 0, 0, ".", ",", ".", ":", 1, 2, _24
+COUNTRY 387, 858, sh_collate_858, sh_yn,     DMY, "K", "M", 0, 0, 0, ".", ",", ".", ".", 1, 2, _24
+COUNTRY 387, 872, sh_collate_872, sh_yn_872, DMY, "K", "M", 0, 0, 0, ".", ",", ".", ":", 1, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; North Macedonia - Country Code 389
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER mk, 855, mk_collate_855, mk_yn_855
-SUBFUNC_HEADER mk, 872, mk_collate_872, mk_yn_872
-SUBFUNC_HEADER mk, 850, mk_collate_850, mk_yn
-SUBFUNC_HEADER mk, 858, mk_collate_858, mk_yn
+COUNTRY 389, 850, mk_collate_850, mk_yn,     DMY, "D", "e", "n",    0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 389, 855, mk_collate_855, mk_yn_855, DMY, 0A7h, 0A8h, 0D4h, 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 389, 858, mk_collate_858, mk_yn,     DMY, "D", "e", "n",    0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 389, 872, mk_collate_872, mk_yn_872, DMY, 0A7h, 0A8h, 0D4h, 0, 0, ".", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Czech Republic - Country Code 420
-; *** see Czechoslovakia (42) and Slovakia (421)
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER cz, 852, cz_collate_852, cz_yn
-SUBFUNC_HEADER cz, 850, cz_collate_850, cz_yn
-SUBFUNC_HEADER cz, 858, cz_collate_858, cz_yn
+COUNTRY 420, 850, cz_collate_850, cz_yn, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
+COUNTRY 420, 852, cz_collate_852, cz_yn, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
+COUNTRY 420, 858, cz_collate_858, cz_yn, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Slovakia - Country Code 421
-; *** see Czechoslovakia (42) and Czech Republic (420)
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER sk, 852, sk_collate_852, sk_yn
-SUBFUNC_HEADER sk, 850, sk_collate_850, sk_yn
-SUBFUNC_HEADER sk, 858, sk_collate_858, sk_yn
+COUNTRY 421, 850, sk_collate_850, sk_yn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 421, 852, sk_collate_852, sk_yn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 421, 858, sk_collate_858, sk_yn, DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Middle East - Country Code 785
+; *** temporary - may be removed and split into actual countries in the future
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER xx, 850, xx_collate_850, xx_yn
-SUBFUNC_HEADER xx, 858, xx_collate_858, xx_yn
-SUBFUNC_HEADER xx, 864, xx_collate_864, xx_yn_864
+COUNTRY 785, 850, xx_collate_850, xx_yn,     DMY, 0CFh, 0, 0, 0, 0, ".", ",", "/", ":", 3, 3, _12
+COUNTRY 785, 858, xx_collate_858, xx_yn,     DMY, 0CFh, 0, 0, 0, 0, ".", ",", "/", ":", 3, 3, _12
+COUNTRY 785, 864, xx_collate_864, xx_yn_864, DMY, 0A4h, 0, 0, 0, 0, ".", ",", "/", ":", 1, 3, _12
 
 ; ------------------------------------------------------------------------------
 ; Israel - Country Code 972
 ; ------------------------------------------------------------------------------
-SUBFUNC_HEADER il, 850, il_collate_850, il_yn
-SUBFUNC_HEADER il, 858, il_collate_858, il_yn
-SUBFUNC_HEADER il, 862, il_collate_862, il_yn_862
+COUNTRY 972, 850, il_collate_850, il_yn, DMY, "N", "I", "S", 0, 0, ",", ".", " ", ":", 2, 2, _24
+COUNTRY 972, 858, il_collate_858, il_yn, DMY, "N", "I", "S", 0, 0, ",", ".", " ", ":", 2, 2, _24
+COUNTRY 972, 862, il_collate_862, il_yn_862, DMY, 99h, 0, 0, 0, 0, ",", ".", " ", ":", 2, 2, _24
+
 
 ; ==============================================================================
-; MULTILINGUAL COUNTRY SUBFUNCTION HEADERS
-; ==============================================================================
-
-; ------------------------------------------------------------------------------
-; Belgium Multilingual - Dutch (nl_BE)
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER nl_BE, 850, nl_collate_850, nl_yn
-SUBFUNC_HEADER nl_BE, 858, nl_collate_858, nl_yn
-SUBFUNC_HEADER nl_BE, 437, nl_collate_437, nl_yn
-
-; ------------------------------------------------------------------------------
-; Belgium Multilingual - French (fr_BE)
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER fr_BE, 850, fr_collate_850, fr_yn
-SUBFUNC_HEADER fr_BE, 858, fr_collate_858, fr_yn
-SUBFUNC_HEADER fr_BE, 437, fr_collate_437, fr_yn
-
-; ------------------------------------------------------------------------------
-; Belgium Multilingual - German (de_BE)
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER de_BE, 850, de_collate_850, de_yn
-SUBFUNC_HEADER de_BE, 858, de_collate_858, de_yn
-SUBFUNC_HEADER de_BE, 437, de_collate_437, de_yn
-
-; ------------------------------------------------------------------------------
-; Spain Multilingual - Spanish (es_ES)
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER es_ES, 850, es_collate_850, es_yn
-SUBFUNC_HEADER es_ES, 858, es_collate_858, es_yn
-SUBFUNC_HEADER es_ES, 437, es_collate_437, es_yn
-
-; ------------------------------------------------------------------------------
-; Spain Multilingual - Catalan (ca_ES)
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER ca_ES, 850, ca_collate_850, ca_yn
-SUBFUNC_HEADER ca_ES, 858, ca_collate_858, ca_yn
-SUBFUNC_HEADER ca_ES, 437, ca_collate_437, ca_yn
-
-; ------------------------------------------------------------------------------
-; Spain Multilingual - Galician (gl_ES)
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER gl_ES, 850, gl_collate_850, gl_yn
-SUBFUNC_HEADER gl_ES, 858, gl_collate_858, gl_yn
-SUBFUNC_HEADER gl_ES, 437, gl_collate_437, gl_yn
-
-; ------------------------------------------------------------------------------
-; Spain Multilingual - Basque (eu_ES)
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER eu_ES, 850, eu_collate_850, eu_yn
-SUBFUNC_HEADER eu_ES, 858, eu_collate_858, eu_yn
-SUBFUNC_HEADER eu_ES, 437, eu_collate_437, eu_yn
-
-; ------------------------------------------------------------------------------
-; Switzerland Multilingual - German (de_CH)
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER de_CH, 850, de_collate_850, de_yn
-SUBFUNC_HEADER de_CH, 858, de_collate_858, de_yn
-SUBFUNC_HEADER de_CH, 437, de_collate_437, de_yn
-
-; ------------------------------------------------------------------------------
-; Switzerland Multilingual - French (fr_CH)
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER fr_CH, 850, fr_collate_850, fr_yn
-SUBFUNC_HEADER fr_CH, 858, fr_collate_858, fr_yn
-SUBFUNC_HEADER fr_CH, 437, fr_collate_437, fr_yn
-
-; ------------------------------------------------------------------------------
-; Switzerland Multilingual - Italian (it_CH)
-; ------------------------------------------------------------------------------
-SUBFUNC_HEADER it_CH, 850, it_collate_850, it_yn
-SUBFUNC_HEADER it_CH, 858, it_collate_858, it_yn
-SUBFUNC_HEADER it_CH, 437, it_collate_437, it_yn
-
-; ==============================================================================
-; SECTION 4: COUNTRY INFORMATION TABLES (Subfunction 1 Data)
-; ==============================================================================
-;
-; Country information defines localized date/time/currency formats.
-; Each entry is created using the 'cnf' macro (country info).
-
-%define MDY 0 ; month/day/year
-%define DMY 1 ; day/month/year
-%define YMD 2 ; year/month/day
-
-%define _12 0 ; time as AM/PM
-%define _24 1 ; 24-hour format
-
-; Country ID  : international numbering
-; Codepage    : codepage to use by default
-; Date format : M = Month, D = Day, Y = Year (4digit); 0=USA, 1=Europe, 2=Japan
-; Currency    : $ = dollar, EUR = EURO (ALT-128), UK uses the pound sign
-; Thousands   : separator for 1000s (1,000,000 bytes; Dutch: 1.000.000 bytes)
-; Decimals    : separator for decimals (2.5 KB; Dutch: 2,5 KB)
-; Datesep     : Date separator (2/4/2004 or 2-4-2004 for example)
-; Timesep     : usually ":" is used to separate hours, minutes and seconds
-; Currencyf   : Currency format (bit array)
-;		bit 2 = set if currency symbol replaces decimal point
-;		bit 1 = number of spaces between value and currency symbol
-;		bit 0 = 0 if currency symbol precedes value
-;			  = 1 if currency symbol follows value
-; Currencyp   : Currency precision
-; Time format : 0=12 hour format (AM/PM), 1=24 hour format (4:12 PM is 16:12)
-
-; ------------------------------------------------------------------------------
-; Macro: cnf (Country Info)
-; ------------------------------------------------------------------------------
-;
-; Parameters:
-;   %1  - Country ID (international phone code)
-;   %2  - Codepage number
-;   %3  - Date format (MDY=0, DMY=1, YMD=2)
-;   %4-8 - Currency symbol (up to 5 bytes, null-terminated)
-;   %9  - Thousands separator (e.g., ',' or '.')
-;   %10 - Decimal separator (e.g., '.' or ',')
-;   %11 - Date separator (e.g., '/', '-', '.')
-;   %12 - Time separator (usually ':')
-;   %13 - Currency format flags:
-;          bit 0: 0=symbol precedes value, 1=symbol follows value
-;          bit 1: number of spaces between value and symbol
-;          bit 2: 1=symbol replaces decimal point
-;   %14 - Currency precision (decimal places)
-;   %15 - Time format (0=12-hour with AM/PM, 1=24-hour)
-;
-; The macro generates a structure with signature 0FFh,'CTYINFO'
-;
-
-%macro cnf 15
-   db 0FFh,"CTYINFO"
-   dw 22              ; length
-   dw %1,%2,%3        ; id, CP=codepage, DF=date format
-   db %4,%5,%6,%7,%8  ; currency - 5 byte ASCIIZ and trailing 0 padded
-   dw %9,%10,%11,%12  ; 1000, 0.1, DS=date separator, TS=time separator
-   db %13,%14,%15     ; CF=currency format, Pr=currency precision, TF=time format
-%endmacro;
-;            ID CP DF  currency       1000 0.1 DS  TS CF Pr TF Country Contrib
-; Note: Euro represented by "EUR" or Euro symbol 0D5h (cp 858) & 0CFh (cp 872)
-; ------------------------------------------------------------------------------
-us_437 cnf   1,437,MDY,"$",    0,0,0,0,",",".","-",":",0,2,_12; United States
-us_850 cnf   1,850,MDY,"$",    0,0,0,0,",",".","-",":",0,2,_12; United States
-us_858 cnf   1,858,MDY,"$",    0,0,0,0,",",".","-",":",0,2,_12; United States
-ca_863 cnf   2,863,YMD,"$",    0,0,0,0," ",",","-",":",3,2,_24; Canada-French
-ca_850 cnf   2,850,YMD,"$",    0,0,0,0," ",",","-",":",3,2,_24; Canada-French
-ca_858 cnf   2,858,YMD,"$",    0,0,0,0," ",",","-",":",3,2,_24; Canada-French
-la_850 cnf   3,850,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_12; Latin America
-la_858 cnf   3,858,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_12; Latin America
-la_437 cnf   3,437,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_12; Latin America
-ru_866 cnf   7,866,DMY,0E0h,".", 0,0,0," ",",",".",":",3,2,_24; Russia	 Arkady
-ru_808 cnf   7,808,DMY,0E0h,".", 0,0,0," ",",",".",":",3,2,_24; Russia
-ru_855 cnf   7,855,DMY,0E1h,".", 0,0,0," ",",",".",":",3,2,_24; Russia
-ru_872 cnf   7,872,DMY,0E1h,".", 0,0,0," ",",",".",":",3,2,_24; Russia
-ru_852 cnf   7,852,DMY,"R","U","B",0,0," ",",",".",":",3,2,_24; Russia
-ru_850 cnf   7,850,DMY,"R","U","B",0,0," ",",",".",":",3,2,_24; Russia
-ru_858 cnf   7,858,DMY,"R","U","B",0,0," ",",",".",":",3,2,_24; Russia
-ru_437 cnf   7,437,DMY,"R","U","B",0,0," ",",",".",":",3,2,_24; Russia
-za_858 cnf  27,858,YMD,"R",    0,0,0,0," ",",","/",":",0,2,_24; South Africa
-za_850 cnf  27,850,YMD,"R",    0,0,0,0," ",",","/",":",0,2,_24; South Africa
-za_437 cnf  27,437,YMD,"R",    0,0,0,0," ",",","/",":",0,2,_24; South Africa
-gr_869 cnf  30,869,DMY,0A8h,0D1h,0C7h,0,0,".",",","/",":",1,2,_12; Greece
-gr_737 cnf  30,737,DMY,84h,93h,90h,0,0,".",",","/",":",1,2,_12; Greece
-gr_850 cnf  30,850,DMY,"E","Y","P",0,0,".",",","/",":",1,2,_12; Greece
-gr_858 cnf  30,858,DMY,0D5h,   0,0,0,0,".",",","/",":",1,2,_12; Greece
-nl_850 cnf  31,850,DMY,"E","U","R",0,0,".",",","-",":",0,2,_24; Netherlands Bart
-nl_858 cnf  31,858,DMY,0D5h,   0,0,0,0,".",",","-",":",0,2,_24; Netherlands
-nl_437 cnf  31,437,DMY,"E","U","R",0,0,".",",","-",":",0,2,_24; Netherlands
-be_850 cnf  32,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Belgium
-be_858 cnf  32,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24; Belgium
-be_437 cnf  32,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Belgium
-fr_850 cnf  33,850,DMY,"E","U","R",0,0," ",",",".",":",0,2,_24; France
-fr_858 cnf  33,858,DMY,0D5h,   0,0,0,0," ",",",".",":",0,2,_24; France
-fr_437 cnf  33,437,DMY,"E","U","R",0,0," ",",",".",":",0,2,_24; France
-es_850 cnf  34,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Spain	  Aitor
-es_858 cnf  34,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24; Spain
-es_437 cnf  34,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Spain
-hu_852 cnf  36,852,YMD,"F","t",	 0,0,0," ",",",".",":",3,2,_24; Hungary
-hu_850 cnf  36,850,YMD,"F","t",	 0,0,0," ",",",".",":",3,2,_24; Hungary
-hu_858 cnf  36,858,YMD,"F","t",	 0,0,0," ",",",".",":",3,2,_24; Hungary
-%ifdef OBSOLETE
-yu_852 cnf  38,852,YMD,"D","i","n",0,0,".",",","-",":",2,2,_24; Yugoslavia [OBSOLETE]
-yu_855 cnf  38,855,YMD,0A7h,0B7h,0D4h,0,0,".",",","-",":",2,2,_24; Yugoslavia [OBSOLETE]
-yu_872 cnf  38,872,YMD,0A7h,0B7h,0D4h,0,0,".",",","-",":",2,2,_24; Yugoslavia [OBSOLETE]
-yu_850 cnf  38,850,YMD,"D","i","n",0,0,".",",","-",":",2,2,_24; Yugoslavia [OBSOLETE]
-yu_858 cnf  38,858,YMD,"D","i","n",0,0,".",",","-",":",2,2,_24; Yugoslavia [OBSOLETE]
-%endif
-it_850 cnf  39,850,DMY,"E","U","R",0,0,".",",","/",".",0,2,_24; Italy
-it_858 cnf  39,858,DMY,0D5h,   0,0,0,0,".",",","/",".",0,2,_24; Italy
-it_437 cnf  39,437,DMY,"E","U","R",0,0,".",",","/",".",0,2,_24; Italy
-ro_852 cnf  40,852,YMD,"L","e","i",0,0,".",",","-",":",0,2,_24; Romania
-ro_850 cnf  40,850,YMD,"L","e","i",0,0,".",",","-",":",0,2,_24; Romania
-ro_858 cnf  40,858,YMD,"L","e","i",0,0,".",",","-",":",0,2,_24; Romania
-ch_850 cnf  41,850,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24; Switzerland
-ch_858 cnf  41,858,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24; Switzerland
-ch_437 cnf  41,437,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24; Switzerland
-;cz_852 cnf  42,852,DMY,"K","c",  0,0,0,".",",","-",":",2,2,_24; Czechoslovakia
-;cz_850 cnf  42,850,DMY,"K","c",  0,0,0,".",",","-",":",2,2,_24; Czechoslovakia
-;cz_858 cnf  42,858,DMY,"K","c",  0,0,0,".",",","-",":",2,2,_24; Czechoslovakia
-at_850 cnf  43,850,DMY,"E","U","R",0,0,".",",",".",".",0,2,_24; Austria
-at_858 cnf  43,858,DMY,0D5h,   0,0,0,0,".",",",".",".",0,2,_24; Austria
-at_437 cnf  43,437,DMY,"E","U","R",0,0,".",",",".",".",0,2,_24; Austria
-gb_850 cnf  44,850,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
-gb_858 cnf  44,858,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
-gb_437 cnf  44,437,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
-dk_865 cnf  45,865,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
-dk_850 cnf  45,850,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
-dk_858 cnf  45,858,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
-se_865 cnf  46,850,YMD,"K","r",	 0,0,0," ",",","-",".",3,2,_24; Sweden
-se_850 cnf  46,850,YMD,"K","r",	 0,0,0," ",",","-",".",3,2,_24; Sweden
-se_858 cnf  46,858,YMD,"K","r",	 0,0,0," ",",","-",".",3,2,_24; Sweden
-se_437 cnf  46,437,YMD,"K","r",	 0,0,0," ",",","-",".",3,2,_24; Sweden
-no_865 cnf  47,865,DMY,"K","r",	 0,0,0,".",",",".",":",2,2,_24; Norway
-no_850 cnf  47,850,DMY,"K","r",	 0,0,0,".",",",".",":",2,2,_24; Norway
-no_858 cnf  47,858,DMY,"K","r",	 0,0,0,".",",",".",":",2,2,_24; Norway
-pl_852 cnf  48,852,YMD,"Z",88h,	 0,0,0,".",",","-",":",0,2,_24; Poland	 Michal
-pl_850 cnf  48,850,YMD,"P","L","N",0,0,".",",","-",":",0,2,_24; Poland
-pl_858 cnf  48,858,YMD,"P","L","N",0,0,".",",","-",":",0,2,_24; Poland
-de_850 cnf  49,850,DMY,"E","U","R",0,0,".",",",".",":",3,2,_24; Germany	    Tom
-de_858 cnf  49,858,DMY,0D5h,   0,0,0,0,".",",",".",":",3,2,_24; Germany
-de_437 cnf  49,437,DMY,"E","U","R",0,0,".",",",".",":",3,2,_24; Germany
-mx_850 cnf  52,850,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_24; Mexico, Currency: $ - Mexican Peso
-mx_858 cnf  52,858,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_24; Mexico
-mx_437 cnf  52,437,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_24; Mexico
-ar_850 cnf  54,850,DMY,"$",    0,0,0,0,".",",","/",".",0,2,_24; Argentina
-ar_858 cnf  54,858,DMY,"$",    0,0,0,0,".",",","/",".",0,2,_24; Argentina
-ar_437 cnf  54,437,DMY,"$",    0,0,0,0,".",",","/",".",0,2,_24; Argentina
-br_850 cnf  55,850,DMY,"R","$", 0,0,0,".",",","/",":",2,2,_24; Brazil
-br_858 cnf  55,858,DMY,"R","$", 0,0,0,".",",","/",":",2,2,_24; Brazil
-br_437 cnf  55,437,DMY,"R","$", 0,0,0,".",",","/",":",2,2,_24; Brazil
-my_437 cnf  60,437,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_12; Malaysia
-au_437 cnf  61,437,DMY,"$",    0,0,0,0,",",".","-",":",0,2,_12; Australia
-au_850 cnf  61,850,DMY,"$",    0,0,0,0,",",".","-",":",0,2,_12; Australia
-au_858 cnf  61,858,DMY,"$",    0,0,0,0,",",".","-",":",0,2,_12; Australia
-id_850 cnf  62,850,DMY,"R","p", 0,0,0,".",",","/",":",0,0,_24; Indonesia
-id_437 cnf  62,437,DMY,"R","p", 0,0,0,".",",","/",":",0,0,_24; Indonesia
-ph_850 cnf  63,850,MDY,"P",    0,0,0,0,",",".","/",":",0,2,_12; Philippines
-ph_437 cnf  63,437,MDY,"P",    0,0,0,0,",",".","/",":",0,2,_12; Philippines
-nz_850 cnf  64,850,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_24; New Zealand, Currency: $ - New Zealand Dollar
-nz_858 cnf  64,858,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_24; New Zealand
-nz_437 cnf  64,437,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_24; New Zealand
-sg_437 cnf  65,437,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_12; Singapore
-th_874 cnf  66,874,DMY,"B",    0,0,0,0,",",".","/",":",0,2,_24; Thailand
-th_850 cnf  66,850,DMY,"B",    0,0,0,0,",",".","/",":",0,2,_24; Thailand
-th_437 cnf  66,437,DMY,"B",    0,0,0,0,",",".","/",":",0,2,_24; Thailand
-jp_932 cnf  81,932,YMD,5Ch,    0,0,0,0,",",".","-",":",0,0,_24; Japan	   Yuki
-jp_437 cnf  81,437,YMD,9Dh,    0,0,0,0,",",".","-",":",0,0,_24; Japan
-kr_934 cnf  82,934,YMD,5Ch,    0,0,0,0,",",".",".",":",0,0,_24; Korea
-kr_437 cnf  82,437,YMD,"K","R","W",0,0,",",".",".",":",0,0,_24; Korea
-vn_1258 cnf 84,1258,DMY,"d",   0,0,0,0,".",",","/",":",3,0,_24; Vietnam
-vn_850 cnf  84,850,DMY,"d",    0,0,0,0,".",",","/",":",3,0,_24; Vietnam
-vn_437 cnf  84,437,DMY,"d",    0,0,0,0,".",",","/",":",3,0,_24; Vietnam
-cn_936 cnf  86,936,YMD,5Ch,    0,0,0,0,",",".",".",":",0,2,_12; China
-cn_437 cnf  86,437,YMD,9Dh,    0,0,0,0,",",".",".",":",0,2,_12; China
-tr_857 cnf  90,857,DMY,"T","R","Y",0,0,".",",","/",":",4,2,_24; Turkey
-tr_850 cnf  90,850,DMY,"T","R","Y",0,0,".",",","/",":",4,2,_24; Turkey
-tr_858 cnf  90,858,DMY,"T","R","Y",0,0,".",",","/",":",4,2,_24; Turkey
-in_437 cnf  91,437,DMY,"R","s",	 0,0,0,".",",","/",":",0,2,_24; India
-pt_860 cnf 351,860,DMY,"E","U","R",0,0,".",",","-",":",0,2,_24; Portugal
-pt_850 cnf 351,850,DMY,"E","U","R",0,0,".",",","-",":",0,2,_24; Portugal
-pt_858 cnf 351,858,DMY,0D5h,   0,0,0,0,".",",","-",":",0,2,_24; Portugal
-lu_850 cnf 352,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Luxembourg
-lu_858 cnf 352,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24; Luxembourg
-lu_437 cnf 352,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Luxembourg
-ie_850 cnf 353,850,DMY,"E","U","R",0,0,",",".","/",":",0,2,_24; Ireland
-ie_858 cnf 353,858,DMY,0D5h,   0,0,0,0,",",".","/",":",0,2,_24; Ireland
-ie_437 cnf 353,437,DMY,"E","U","R",0,0,",",".","/",":",0,2,_24; Ireland
-is_861 cnf 354,861,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
-is_865 cnf 354,861,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
-is_850 cnf 354,850,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
-is_858 cnf 354,858,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
-al_852 cnf 355,852,DMY,"L","e","k",0,0,".",",",".",":",3,2,_24; Albania
-al_850 cnf 355,850,DMY,"L","e","k",0,0,".",",",".",":",3,2,_24; Albania
-al_858 cnf 355,858,DMY,"L","e","k",0,0,".",",",".",":",3,2,_24; Albania
-mt_850 cnf 356,850,DMY,"E","U","R",0,0,",",".","/",":",0,2,_24; Malta
-mt_858 cnf 356,858,DMY,0D5h,   0,0,0,0,",",".","/",":",0,2,_24; Malta
-mt_437 cnf 356,437,DMY,"E","U","R",0,0,",",".","/",":",0,2,_24; Malta
-cy_869 cnf 357,869,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24; Cyprus
-cy_850 cnf 357,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Cyprus
-cy_858 cnf 357,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24; Cyprus
-fi_865 cnf 358,850,DMY,"E","U","R",0,0," ",",",".",".",3,2,_24; Finland
-fi_850 cnf 358,850,DMY,"E","U","R",0,0," ",",",".",".",3,2,_24; Finland	   Wolf
-fi_858 cnf 358,858,DMY,0D5h,   0,0,0,0," ",",",".",".",3,2,_24; Finland
-fi_437 cnf 358,437,DMY,"E","U","R",0,0," ",",",".",".",3,2,_24;
-;bg_855 cnf 359,855,DMY,0D0h,0EBh,".",0,0," ",",",".",",",3,2,_24; Bulgaria  Lucho&RDPK7
-;bg_872 cnf 359,872,DMY,0D0h,0EBh,".",0,0," ",",",".",",",3,2,_24; Bulgaria  Lucho&RDPK7
-;bg_850 cnf 359,850,DMY,"B","G","N",0,0," ",",",".",",",3,2,_24; Bulgaria  RDPK7
-;bg_858 cnf 359,858,DMY,"B","G","N",0,0," ",",",".",",",3,2,_24; Bulgaria  RDPK7
-;bg_866 cnf 359,866,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria
-;bg_808 cnf 359,808,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria
-;bg_849 cnf 359,849,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria
-;bg_1131 cnf 359,1131,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria
-;bg_30033 cnf 359,30033,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria  RDPK7
-bg_855 cnf 359,855,DMY,"E","U","R",0,0," ",",",".",",",3,2,_24; Bulgaria, 2026 Euro replaced BGN
-bg_872 cnf 359,872,DMY,"E","U","R",0,0," ",",",".",",",3,2,_24; Bulgaria
-bg_850 cnf 359,850,DMY,"E","U","R",0,0," ",",",".",",",3,2,_24; Bulgaria
-bg_858 cnf 359,858,DMY,0D5h,   0,0,0,0," ",",",".",",",3,2,_24; Bulgaria
-bg_866 cnf 359,866,DMY,"E","U","R",0,0," ",",",".",",",3,2,_24; Bulgaria
-bg_808 cnf 359,808,DMY,"E","U","R",0,0," ",",",".",",",3,2,_24; Bulgaria
-bg_849 cnf 359,849,DMY,"E","U","R",0,0," ",",",".",",",3,2,_24; Bulgaria
-bg_1131 cnf 359,1131,DMY,"E","U","R",0,0," ",",",".",",",3,2,_24; Bulgaria
-bg_30033 cnf 359,30033,DMY,"E","U","R",0,0," ",",",".",",",3,2,_24; Bulgaria
-ee_775 cnf 372,775,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24; Estonia
-ee_850 cnf 372,850,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
-ee_858 cnf 372,858,DMY,0D5h,   0,0,0,0," ",",",".",":",3,2,_24;
-lv_775 cnf 371,775,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24; Latvia
-lv_850 cnf 371,850,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
-lv_858 cnf 371,858,DMY,0D5h,   0,0,0,0," ",",",".",":",3,2,_24;
-lt_775 cnf 370,775,YMD,"E","U","R",0,0," ",",","-",":",3,2,_24; Lithuania
-lt_850 cnf 370,850,YMD,"E","U","R",0,0," ",",","-",":",3,2,_24;
-lt_858 cnf 370,858,YMD,0D5h,   0,0,0,0," ",",","-",":",3,2,_24;
-by_849 cnf 375,849,DMY,0E0h,0E3h,0A1h,".",0," ",",",".",":",3,2,_24;Belarus
-by_1131 cnf 375,1131,DMY,0E0h,0E3h,0A1h,".",0," ",",",".",":",3,2,_24; Belarus
-by_850 cnf 375,850,DMY,"B","Y","R",0,0," ",",",".",",",3,2,_24; Belarus
-by_858 cnf 375,858,DMY,"B","Y","R",0,0," ",",",".",",",3,2,_24; Belarus
-ua_848 cnf 380,848,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24;Ukraine Oleg
-ua_855 cnf 380,855,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24;Ukraine
-ua_1125 cnf 380,1125,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24; Ukraine
-ua_866 cnf 380,866,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24; Ukraine
-rs_855 cnf 381,855,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
-rs_872 cnf 381,872,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
-rs_852 cnf 381,852,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
-rs_850 cnf 381,850,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
-rs_858 cnf 381,858,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
-me_852 cnf 382,852,DMY,"E","U","R",0,0,".",",",".",":",0,2,_24; Montenegro
-me_855 cnf 382,855,DMY,"E","U","R",0,0,".",",",".",":",0,2,_24; Montenegro
-me_872 cnf 382,872,DMY,0CFh,   0,0,0,0,".",",",".",":",0,2,_24; Montenegro
-me_850 cnf 382,850,DMY,"E","U","R",0,0,".",",",".",":",0,2,_24; Montenegro
-me_858 cnf 382,858,DMY,0D5h,   0,0,0,0,".",",",".",":",0,2,_24; Montenegro
-xk_852 cnf 383,852,DMY,"E","U","R",0,0,".",",",".",":",0,2,_24; Kosovo
-xk_855 cnf 383,855,DMY,"E","U","R",0,0,".",",",".",":",0,2,_24; Kosovo
-xk_872 cnf 383,872,DMY,0CFh,   0,0,0,0,".",",",".",":",0,2,_24; Kosovo
-xk_850 cnf 383,850,DMY,"E","U","R",0,0,".",",",".",":",0,2,_24; Kosovo
-xk_858 cnf 383,858,DMY,0D5h,   0,0,0,0,".",",",".",":",0,2,_24; Kosovo
-hr_852 cnf 385,852,DMY,"E","U","R",0,0,".",",",".",".",3,2,_24; Croatia
-hr_850 cnf 385,850,DMY,"E","U","R",0,0,".",",",".",".",3,2,_24; Croatia
-hr_858 cnf 385,858,DMY,0D5h,   0,0,0,0,".",",",".",".",3,2,_24; Croatia
-si_852 cnf 386,852,DMY,"E","U","R",0,0,".",",",".",":",3,2,_24; Slovenia
-si_850 cnf 386,850,DMY,"E","U","R",0,0,".",",",".",":",3,2,_24; Slovenia
-si_858 cnf 386,858,DMY,0D5h,   0,0,0,0,".",",",".",":",3,2,_24; Slovenia
-ba_852 cnf 387,852,DMY,"K","M",  0,0,0,".",",",".",".",1,2,_24; Bosnia
-ba_850 cnf 387,850,DMY,"K","M",  0,0,0,".",",",".",".",1,2,_24; Bosnia
-ba_858 cnf 387,858,DMY,"K","M",  0,0,0,".",",",".",".",1,2,_24; Bosnia
-ba_855 cnf 387,855,DMY,"K","M",  0,0,0,".",",",".",":",1,2,_24; Bosnia
-ba_872 cnf 387,872,DMY,"K","M",  0,0,0,".",",",".",":",1,2,_24; Bosnia
-mk_855 cnf 389,855,DMY,0A7h,0A8h,0D4h,0,0,".",",",".",":",3,2,_24; North Macedonia
-mk_872 cnf 389,872,DMY,0A7h,0A8h,0D4h,0,0,".",",",".",":",3,2,_24; North Macedonia
-mk_850 cnf 389,850,DMY,"D","e","n",0,0,".",",",".",":",3,2,_24; North Macedonia
-mk_858 cnf 389,858,DMY,"D","e","n",0,0,".",",",".",":",3,2,_24; North Macedonia
-cz_852 cnf 420,852,DMY,"K","c",  0,0,0,".",",","-",":",2,2,_24; Czech Republic
-cz_850 cnf 420,850,DMY,"K","c",  0,0,0,".",",","-",":",2,2,_24; Czech Republic
-cz_858 cnf 420,858,DMY,"K","c",  0,0,0,".",",","-",":",2,2,_24; Czech Republic
-sk_852 cnf 421,852,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24; Slovakia
-sk_850 cnf 421,850,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24; Slovakia
-sk_858 cnf 421,858,DMY,0D5h,   0,0,0,0," ",",",".",":",3,2,_24; Slovakia
-xx_864 cnf 785,864,DMY,0A4h,   0,0,0,0,".",",","/",":",1,3,_12; Middle East
-xx_850 cnf 785,850,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
-xx_858 cnf 785,858,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
-il_862 cnf 972,862,DMY,99h,    0,0,0,0,",","."," ",":",2,2,_24; Israel
-il_850 cnf 972,850,DMY,"N","I","S",0,0,",","."," ",":",2,2,_24; Israel
-il_858 cnf 972,858,DMY,"N","I","S",0,0,",","."," ",":",2,2,_24; Israel
-es_ES_850 cnf 40034,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Spain:
-es_ES_858 cnf 40034,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24;  Spanish
-es_ES_437 cnf 40034,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-ca_ES_850 cnf 41034,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24;  Catalan
-ca_ES_858 cnf 41034,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24
-ca_ES_437 cnf 41034,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-gl_ES_850 cnf 42034,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24;  Galician
-gl_ES_858 cnf 42034,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24
-gl_ES_437 cnf 42034,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-eu_ES_850 cnf 43034,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24;  Basque
-eu_ES_858 cnf 43034,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24
-eu_ES_437 cnf 43034,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-nl_BE_850 cnf 40032,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Belgium:
-nl_BE_858 cnf 40032,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24;  Dutch
-nl_BE_437 cnf 40032,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-fr_BE_850 cnf 41032,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24;  French
-fr_BE_858 cnf 41032,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24
-fr_BE_437 cnf 41032,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-de_BE_850 cnf 42032,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24;  German
-de_BE_858 cnf 42032,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24
-de_BE_437 cnf 42032,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-de_CH_850 cnf 40041,850,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24; Switzerland
-de_CH_858 cnf 40041,858,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24;  German
-de_CH_437 cnf 40041,437,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24
-fr_CH_850 cnf 41041,850,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24;  French
-fr_CH_858 cnf 41041,858,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24
-fr_CH_437 cnf 41041,437,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24
-it_CH_850 cnf 42041,850,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24;  Italian
-it_CH_858 cnf 42041,858,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24
-it_CH_437 cnf 42041,437,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24
-
-; ==============================================================================
-; SECTION 5: UPPERCASE/LOWERCASE TABLES (Subfunctions 2, 3, 4)
+; SECTION 3: UPPERCASE/LOWERCASE TABLES (Subfunctions 2, 3, 4)
 ; ==============================================================================
 ;
 ; Uppercase tables define character case mappings for each codepage.
@@ -2409,7 +1616,7 @@ db 248, 249, 250, 251, 252, 253, 254, 255
 
 
 ; ==============================================================================
-; SECTION 6: FILENAME CHARACTER TABLE (Subfunction 5)
+; SECTION 4: FILENAME CHARACTER TABLE (Subfunction 5)
 ; ==============================================================================
 ;
 ; Defines valid/invalid characters in filenames.
@@ -2453,7 +1660,7 @@ db  60,	 62,  43,  61,	59,  44           ; <>+=;,
 
 
 ; ==============================================================================
-; SECTION 7: COLLATING SEQUENCES (Subfunction 6)
+; SECTION 5: COLLATING SEQUENCES (Subfunction 6)
 ; ==============================================================================
 ;
 ; Collating sequences define the sort order for characters.
@@ -3889,7 +3096,7 @@ xk_collate_850 equ en_collate_850
 xk_collate_858 equ en_collate_858
 
 ; ==============================================================================
-; SECTION 8: DBCS TABLES (Subfunction 7)
+; SECTION 6: DBCS TABLES (Subfunction 7)
 ; ==============================================================================
 ;
 ; Double-Byte Character Set (DBCS) tables define lead byte ranges
@@ -3936,7 +3143,7 @@ cn_dbcs_936 db 0FFh,"DBCS   "
       db 000h, 000h
 
 ; ==============================================================================
-; SECTION 9: YES/NO TABLES (Subfunction 35)
+; SECTION 7: YES/NO TABLES (Subfunction 35)
 ; ==============================================================================
 ;
 ; Yes/No tables define characters used for yes/no prompts.
