@@ -114,29 +114,29 @@
 ; TABLE OF CONTENTS
 ; ==============================================================================
 ;
-; SECTION 1: FILE STRUCTURE
-;   File Header (signature, magic bytes, entry pointer)
+; 1: FILE STRUCTURE
+;   [.data] File Header (signature, magic bytes, entry pointer)
 ;
-; SECTION 2: ENTRIES (for each country/codepage)
-;   - Entry Table (index of all country/codepage combinations)
-;   - Defines which subfunctions are available for each entry
-;   - Date format, time format, currency symbol, separators,
+; 2: ENTRIES (for each country/codepage)
+;   - [.data1] Entry Table (index of all country/codepage combinations)
+;   - [.data2] Defines which subfunctions are available for each entry
+;   - [.data3] Date format, time format, currency symbol, separators,
 ;     the COUNTRY INFORMATION TABLES (subfunction 1)
 ;
-; SECTION 3: UPPERCASE/LOWERCASE TABLES (Subfunctions 2, 3, 4)
-;   Character case conversion mappings for each codepage
+; 3: UPPERCASE/LOWERCASE TABLES (Subfunctions 2, 3, 4)
+;   [.data4] Character case conversion mappings for each codepage
 ;
-; SECTION 4: FILENAME CHARACTER TABLE (Subfunction 5)
-;   Characters allowed/disallowed in filenames
+; 4: FILENAME CHARACTER TABLE (Subfunction 5)
+;   [.data5] Characters allowed/disallowed in filenames
 ;
-; SECTION 5: COLLATING SEQUENCES (Subfunction 6)
-;   Sort order for each country/codepage combination
+; 5: COLLATING SEQUENCES (Subfunction 6)
+;   [.data6] Sort order for each country/codepage combination
 ;
-; SECTION 6: DBCS TABLES (Subfunction 7)
-;   Double-Byte Character Set lead byte ranges (Japanese, Korean, Chinese)
+; 6: DBCS TABLES (Subfunction 7)
+;   [.data7] Double-Byte Character Set lead byte ranges (Japanese, Korean, Chinese)
 ;
-; SECTION 7: YES/NO TABLES (Subfunction 35)
-;   Yes/No prompt characters for each language
+; 7: YES/NO TABLES (Subfunction 35)
+;   [.data8] Yes/No prompt characters for each language
 ;
 ; ------------------------------------------------------------------------------
 ; COUNTRIES:
@@ -319,7 +319,7 @@ _24 equ 1       ; 24-hour clock
 ;-------------------------------------------------------------------------------
 
 %macro COUNTRY 17
-section .data align=1
+section .data1 align=1
     ; === SECTION 1: Entry Table Record ===
     ; Format: dw size, country, codepage, reserved(2); dd offset
 __e_%1_%2:
@@ -367,7 +367,7 @@ ci_%1_%2:
 ;-------------------------------------------------------------------------------
 
 %macro COUNTRY_LCASE 18
-section .data align=1
+section .data1 align=1
     ; === SECTION 1: Entry Table Record ===
 __e_%1_%2:
     dw 12, %1, %2, 0, 0
@@ -411,7 +411,7 @@ ci_%1_%2:
 ;-------------------------------------------------------------------------------
 
 %macro COUNTRY_DBCS 18
-section .data align=1
+section .data1 align=1
     ; === SECTION 1: Entry Table Record ===
 __e_%1_%2:
     dw 12, %1, %2, 0, 0
@@ -463,7 +463,7 @@ ci_%1_%2:
     ; Compute extended country code: (4 multilang base = 4XNNN)
     %assign _extended_cc (40000 + (%2 * 1000) + %1)
 
-section .data align=1
+section .data1 align=1
     ; === SECTION 1: Entry Table Record ===
 __e_%[_extended_cc]_%3:
     dw 12, _extended_cc, %3, 0, 0
@@ -521,12 +521,12 @@ ci_%[_extended_cc]_%3:
 %endmacro
 
 %macro COUNTRY_ENTRIES_START 0
-section .data align=1
+section .data1 align=1
 country_entries_start:
 %endmacro
 
 %macro COUNTRY_ENTRIES_END 0
-section .data align=1
+section .data1 align=1
 country_entries_end:
 %endmacro
 
@@ -559,7 +559,7 @@ country_entries_end:
 
 
 ; ==============================================================================
-; SECTION 1: FILE HEADER
+; 1: FILE HEADER
 ; ==============================================================================
 ;
 ; The file header contains the magic signature 'COUNTRY' and points to
@@ -570,14 +570,14 @@ country_entries_end:
 ;   - Bytes 18-21: Pointer to entry table
 ;
 
-section .data
+section .data align=1
 
 db 0FFh,"COUNTRY",0,0,0,0,0,0,0,0,1,0,1 ; reserved and undocumented values
 dd  ent     ; first entry
 ent dw  (country_entries_end - country_entries_start) / 14
 
 ; ==============================================================================
-; SECTION 2: COUNTRY ENTRIES
+; 2: COUNTRY ENTRIES
 ; ==============================================================================
 ;
 ; Each COUNTRY* macro generates entry table + subfunction header + country info
@@ -1090,7 +1090,7 @@ COUNTRY_ENTRIES_END
 
 section .data4 align=1
 ; ==============================================================================
-; SECTION 3: UPPERCASE/LOWERCASE TABLES (Subfunctions 2, 3, 4)
+; 3: UPPERCASE/LOWERCASE TABLES (Subfunctions 2, 3, 4)
 ; ==============================================================================
 ;
 ; Uppercase tables define character case mappings for each codepage.
@@ -1644,7 +1644,7 @@ db 248, 249, 250, 251, 252, 253, 254, 255
 
 section .data5 align=1
 ; ==============================================================================
-; SECTION 4: FILENAME CHARACTER TABLE (Subfunction 5)
+; 4: FILENAME CHARACTER TABLE (Subfunction 5)
 ; ==============================================================================
 ;
 ; Defines valid/invalid characters in filenames.
@@ -1689,7 +1689,7 @@ db  60,	 62,  43,  61,	59,  44           ; <>+=;,
 
 section .data6 align=1
 ; ==============================================================================
-; SECTION 5: COLLATING SEQUENCES (Subfunction 6)
+; 5: COLLATING SEQUENCES (Subfunction 6)
 ; ==============================================================================
 ;
 ; Collating sequences define the sort order for characters.
@@ -3126,7 +3126,7 @@ xk_collate_858 equ en_collate_858
 
 section .data7 align=1
 ; ==============================================================================
-; SECTION 6: DBCS TABLES (Subfunction 7)
+; 6: DBCS TABLES (Subfunction 7)
 ; ==============================================================================
 ;
 ; Double-Byte Character Set (DBCS) tables define lead byte ranges
@@ -3174,7 +3174,7 @@ cn_dbcs_936 db 0FFh,"DBCS   "
 
 section .data8 align=1
 ; ==============================================================================
-; SECTION 7: YES/NO TABLES (Subfunction 35)
+; 7: YES/NO TABLES (Subfunction 35)
 ; ==============================================================================
 ;
 ; Yes/No tables define characters used for yes/no prompts.
