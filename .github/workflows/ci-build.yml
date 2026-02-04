@@ -33,3 +33,10 @@ jobs:
     - name: Validate
       run: |
         ./ci_validate.py
+
+    - name: Upload binary artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: country.sys
+        path: country.sys
+        retention-days: 30
