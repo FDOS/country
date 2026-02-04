@@ -173,6 +173,24 @@ def check_master(lines, known_codepages):
                 print(f"Line {lineNo}: Country ISO3166-1-A2 ({country_code}) mismatch with International Phone Prefix ({base_cc}) in '{line_clean}'")
                 errors += 1
                 continue
+                
+            # verify ml_idx is within expected range, currently multi-langauge sets are 3 or 4 variations, so 0 to 2 or 0 to 3 idx
+            if not (0 <= int(ml_idx) <= 3):
+                print(f"Line {lineNo}: ml_idx ({ml_idx}) not in expected range of 0 to 3")
+                errors += 1
+                continue
+
+            # verify numeric_country is within expected range, 4XCCC
+            if not (40000 <= int(numeric_country) <= 43999):
+                print(f"Line {lineNo}: numeric_country ({numeric_country}) not in expected range")
+                errors += 1
+                continue
+                
+            # verify base_cc <= 999 (higher country codes not supported for multilang usage).
+            if not (1 <= int(base_cc) <= 999):
+                print(f"Line {lineNo}: base_cc ({base_cc}) not in expected range")
+                errors += 1
+                continue            
             
             # validate codepage is at least within known set of codepages
             if codepage and codepage not in known_codepages:
