@@ -33,7 +33,35 @@ def is_country(code, pnum):
     return code.upper() in phonenumbers.region_codes_for_country_code(int(pnum, 10))
 
 
-def check_master(lines):
+def extract_known_codepages(lines):
+    """
+    Extract known codepages from the CODEPAGES comment block in country.asm.
+    
+    Returns:
+        set: Set of known valid codepage numbers as strings
+    """
+    known_codepages = set()
+    in_codepages_block = False
+    
+    for line in lines:
+        stripped = line.strip()
+        # Start of CODEPAGES block
+        if stripped == '; CODEPAGES:':
+            in_codepages_block = True
+            continue
+        # End of block (next section starts with ; ==)
+        if in_codepages_block and stripped.startswith('; =='):
+            break
+        # Parse codepage numbers from comment lines
+        if in_codepages_block and stripped.startswith(';'):
+            # Match patterns like "437  = US/OEM" or "30033  = Bulgarian MIK"
+            for match in re.finditer(r'\b(\d+)\s*=\s*\w', stripped):
+                known_codepages.add(match.group(1))
+    
+    return known_codepages
+
+
+def check_master(lines, known_codepages):
     """
     Validates COUNTRY, OLD_COUNTRY, COUNTRY_LCASE, COUNTRY_DBCS, and COUNTRY_ML macro invocations in NASM assembly.
     
@@ -46,7 +74,6 @@ def check_master(lines):
     """
     errors = 0
     num_found = 0
-    in_obsolete_block = False
     obsolete_entries_found = 0
 
     # Build country map from comments in country.asm
@@ -58,12 +85,6 @@ def check_master(lines):
             for match in comment_country_re.finditer(line):
                 num_code, alpha2 = match.groups()
                 country_map[num_code] = alpha2
-
-    # %if OBSOLETE / %ifdef OBSOLETE
-    obsolete_start_re = r"^%if(?:def)?\s+OBSOLETE"
-
-    # %else or %endif
-    obsolete_end_re = r"^%(?:else|endif)"
 
     # COUNTRY 1, 437, ...
     # OLD_COUNTRY 38, 852, ...
@@ -77,14 +98,6 @@ def check_master(lines):
     for lineNo, line in enumerate(lines, start=1):
         # Strip comments and whitespace
         line_clean = line.split(';')[0].strip()
-        
-        # Track if in %if OBSOLETE blocks
-        if re.match(obsolete_start_re, line_clean):
-            in_obsolete_block = True
-            continue
-        if in_obsolete_block and re.match(obsolete_end_re, line_clean):
-            in_obsolete_block = False
-            continue
         
         # Check standard COUNTRY macros
         country_match = re.match(country_re, line_clean)
@@ -114,6 +127,12 @@ def check_master(lines):
             # Validate country code matches numeric country code
             if not is_country(country_code, numeric_country):
                 print(f"Line {lineNo}: Country ISO3166-1-A2 ({country_code}) mismatch with International Phone Prefix ({numeric_country}) in '{line_clean}'")
+                errors += 1
+                continue
+
+            # validate codepage is at least within known set of codepages
+            if codepage and codepage not in known_codepages:
+                print(f"Line {lineNo}: New codepage found {codepage}, update CODEPAGES comment block in country.asm or correct country.asm with correct codepage if it was just a typo.")
                 errors += 1
                 continue
 
@@ -155,6 +174,12 @@ def check_master(lines):
                 errors += 1
                 continue
             
+            # validate codepage is at least within known set of codepages
+            if codepage and codepage not in known_codepages:
+                print(f"Line {lineNo}: New codepage found {codepage}, update CODEPAGES comment block in country.asm or correct country.asm with correct codepage if it was just a typo.")
+                errors += 1
+                continue
+
             continue
 
     return (errors, num_found, obsolete_entries_found)
@@ -162,10 +187,15 @@ def check_master(lines):
 
 # Usage
 lines = COUNTRY_ASM.read_text(encoding='utf-8').splitlines()
-errors, entries_found, obsolete_entries_found = check_master(lines)
+
+# gather codepage list from source comment instead of hard coding set
+known_codepages = extract_known_codepages(lines)
+
+# Country code validation
+errors, entries_found, obsolete_entries_found = check_master(lines, known_codepages)
 
 if errors:
     print(f"Errors = {errors}")
     sys.exit(2)
 
-print(f"\n✅ Validation passed: {entries_found} entries found, with {obsolete_entries_found} obsolete entries")
+print(f"\n✅ Validation passed: {entries_found} entries found, with {obsolete_entries_found} obsolete entries; {len(known_codepages)} codepages")
