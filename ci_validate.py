@@ -174,7 +174,7 @@ def check_master(lines, known_codepages):
                 errors += 1
                 continue
                 
-            # verify ml_idx is within expected range, currently multi-langauge sets are 3 or 4 variations, so 0 to 2 or 0 to 3 idx
+            # verify ml_idx is within expected range, currently multi-language sets are 3 or 4 variations, so 0 to 2 or 0 to 3 idx
             if not (0 <= int(ml_idx) <= 3):
                 print(f"Line {lineNo}: ml_idx ({ml_idx}) not in expected range of 0 to 3")
                 errors += 1
