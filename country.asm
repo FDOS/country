@@ -1,10 +1,52 @@
-; File:
-;			country.asm
-; Description:
-;	    The FreeDOS COUNTRY.SYS source code
+; ==============================================================================
+; File:     country.asm
+; ==============================================================================
 ;
-;		     Copyleft (G) 2004
-;		    The FreeDOS Project
+; Description:
+;     FreeDOS COUNTRY.SYS - International Localization Data
+;
+;     This file contains country-specific localization data for FreeDOS,
+;     including date/time/currency formats, uppercase/lowercase mappings,
+;     collating sequences (sorting orders), filename character tables,
+;     and yes/no prompt characters for multiple country and codepage
+;     combinations.
+;
+; Purpose:
+;     COUNTRY.SYS provides international support for DOS applications by
+;     defining locale-specific behavior. It is loaded by the kernel at
+;     boot time via CONFIG.SYS: COUNTRY=<code>,<codepage>,<filepath>
+;
+; Compatibility:
+;     This file is binary-compatible with COUNTRY.SYS from:
+;     - MS-DOS (Microsoft DOS)
+;     - PC-DOS (IBM DOS)
+;     - PTS-DOS
+;     - OS/2
+;     - Windows 9x
+;
+; File Format:
+;     Format described in Ralf Brown's Interrupt List (RBIL)
+;     Tables 2619-2622
+;
+; Structure Overview:
+;     1. File Header       - Magic signature and entry count
+;     2. Entry Table       - Index of all country/codepage combinations
+;     3. Subfunction Data  - Actual localization data for each country:
+;        a. Country Info   - Date/time/currency format (subfunction 1)
+;        b. Uppercase      - Character case mapping (subfunction 2)
+;        c. Lowercase      - Inverse case mapping (subfunction 3)
+;        d. Filename Upper - Filename character mapping (subfunction 4)
+;        e. Filename Chars - Valid filename characters (subfunction 5)
+;        f. Collating Seq  - Sort order (subfunction 6)
+;        g. DBCS Table     - Double-byte character sets (subfunction 7)
+;        h. Yes/No Chars   - Prompt characters (subfunction 35)
+;
+; ------------------------------------------------------------------------------
+; Copyright Information:
+; ------------------------------------------------------------------------------
+;
+;                    Copyleft (G) 2004
+;                    The FreeDOS Project
 ;
 ; This file is part of FreeDOS.
 ;
@@ -23,3513 +65,1054 @@
 ; write to the Free Software Foundation, Inc.,
 ; 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 ; or go to http://www.gnu.org/licenses/gpl.html
-
-; $Id: country.asm 1637 2011-06-27 01:05:22Z perditionc $
-
-; This COUNTRY.SYS is compatible with COUNTRY.SYS
-; of MS-DOS, PC-DOS, PTS-DOS, OS/2, Win9x, WinNT
-; File format described in RBIL tables 2619-2622
 ;
-; Created as a kernel table by Tom Ehlert
-; Reformatted and commented by Bernd Blaauw
-; Separated from the kernel by Luchezar Georgiev
-; Case/collate tables added by Eduardo Casino
-; Yes/No and page 850 table by Steffen Kaiser
-; Amended by many contributors (see names below)
+; ------------------------------------------------------------------------------
+; Credits:
+; ------------------------------------------------------------------------------
+;
+; Created as a kernel table by:          Tom Ehlert
+; Reformatted and commented by:          Bernd Blaauw
+; Separated from the kernel by:          Luchezar Georgiev
+; Case/collate tables added by:          Eduardo Casino
+; Yes/No and codepage 850 table by:      Steffen Kaiser
+; Amended by many contributors
+;
+; ------------------------------------------------------------------------------
+; REFERENCES
+; ------------------------------------------------------------------------------
+;
+; Standards used in this file:
+;   - ISO 3166-1: Country codes
+;     https://www.iso.org/iso-3166-country-codes.html
+;   - ISO 639-1: Language codes
+;     https://www.loc.gov/standards/iso639-2/php/code_list.php
+;   - ISO 4217: Currency codes
+;     https://www.iso.org/iso-4217-currency-codes.html
+;   - Ralf Brown's Interrupt List (RBIL): DOS structures
+;     https://www.ctyme.com/rbrown.htm
+;   - European Central Bank: Euro adoption dates
+;     https://www.ecb.europa.eu/euro/intro/html/index.en.html
+;
+; Euro adoption dates for reference:
+;   1999: Austria, Belgium, Finland, France, Germany, Ireland, Italy,
+;         Luxembourg, Netherlands, Portugal, Spain
+;   2001: Greece
+;   2007: Slovenia
+;   2008: Cyprus, Malta
+;   2009: Slovakia
+;   2011: Estonia
+;   2014: Latvia
+;   2015: Lithuania
+;   2023: Croatia
+;   2026: Bulgaria
+;
+; Yugoslavia dissolution (1991-1992) successor states:
+;   Slovenia (386), Croatia (384), Bosnia-Herzegovina (387),
+;   Serbia (381), North Macedonia (389), Montenegro (382), Kosovo (383)
+;
+; ==============================================================================
+; TABLE OF CONTENTS
+; ==============================================================================
+;
+; 1: FILE STRUCTURE
+;   [.data] File Header (signature, magic bytes, entry pointer)
+;
+; 2: ENTRIES (for each country/codepage)
+;   - [.data1] Entry Table (index of all country/codepage combinations)
+;   - [.data2] Defines which subfunctions are available for each entry
+;   - [.data3] Date format, time format, currency symbol, separators,
+;     the COUNTRY INFORMATION TABLES (subfunction 1)
+;
+; 3: UPPERCASE/LOWERCASE TABLES (Subfunctions 2, 3, 4)
+;   [.data4] Character case conversion mappings for each codepage
+;
+; 4: FILENAME CHARACTER TABLE (Subfunction 5)
+;   [.data5] Characters allowed/disallowed in filenames
+;
+; 5: COLLATING SEQUENCES (Subfunction 6)
+;   [.data6] Sort order for each country/codepage combination
+;
+; 6: DBCS TABLES (Subfunction 7)
+;   [.data7] Double-Byte Character Set lead byte ranges (Japanese, Korean, Chinese)
+;
+; 7: YES/NO TABLES (Subfunction 35)
+;   [.data8] Yes/No prompt characters for each language
+;
+; ------------------------------------------------------------------------------
+; COUNTRIES:
+; Note: ISO alpha-2 character country codes are only used internally
+;       All external references use international numeric country code
+; ------------------------------------------------------------------------------
+;
+;   1 = United States (US)           2 = Canada (CA)
+;   3 = Latin America (LA)           7 = Russia (RU)
+;  27 = South Africa (ZA)           30 = Greece (GR)
+;  31 = Netherlands (NL)            32 = Belgium (BE)
+;  33 = France (FR)                 34 = Spain (ES)
+;  36 = Hungary (HU)                38 = Yugoslavia (YU) [OBSOLETE]
+;  39 = Italy (IT)                  40 = Romania (RO)
+;  41 = Switzerland (CH)            42 = Czechoslovakia (CZ) [OBSOLETE]
+;  43 = Austria (AT)                44 = United Kingdom (GB)
+;  45 = Denmark (DK)                46 = Sweden (SE)
+;  47 = Norway (NO)                 48 = Poland (PL)
+;  49 = Germany (DE)                52 = Mexico (MX)
+;  54 = Argentina (AR)              55 = Brazil (BR)
+;  60 = Malaysia (MY)               61 = Australia (AU)
+;  62 = Indonesia (ID)              63 = Philippines (PH)
+;  64 = New Zealand (NZ)            65 = Singapore (SG)
+;  66 = Thailand (TH)               81 = Japan (JP)
+;  82 = South Korea (KR)            84 = Vietnam (VN)
+;  86 = China (CN)                  90 = Turkey (TR)
+;  91 = India (IN)                 351 = Portugal (PT)
+; 352 = Luxembourg (LU)            353 = Ireland (IE)
+; 354 = Iceland (IS)               355 = Albania (AL)
+; 356 = Malta (MT)                 357 = Cyprus (CY)
+; 358 = Finland (FI)               359 = Bulgaria (BG)
+; 370 = Lithuania (LT)             371 = Latvia (LV)
+; 372 = Estonia (EE)               375 = Belarus (BY)
+; 380 = Ukraine (UA)               381 = Serbia (RS)
+; 382 = Montenegro (ME)            383 = Kosovo (XK)
+; 385 = Croatia (HR)               386 = Slovenia (SI)
+; 387 = Bosnia-Herzegovina (BA)    389 = North Macedonia (MK)
+; 420 = Czech Republic (CZ)        421 = Slovakia (SK)
+; 785 = Middle East (XX) *temp*    972 = Israel (IL)
+;
+; Multilingual (4xxxx codes):
+; Belgium
+;  40032 = Dutch-Belgium            
+;  41032 = French-Belgium
+;  42032 = German-Belgium
+; Spain
+;  40034 = Spanish-Spain
+;  41034 = Catalan-Spain
+;  42034 = Galician-Spain
+;  43034 = Basque-Spain
+; Switzerland
+;  40041 = German-Switzerland
+;  41041 = French-Switzerland
+;  42041 = Italian-Switzerland
+;
+; ------------------------------------------------------------------------------
+; CODEPAGES:
+; ------------------------------------------------------------------------------
+;
+;  437  = US/OEM                    737  = Greek
+;  775  = Baltic Rim                808  = Russian (Euro)
+;  848  = Ukrainian                 849  = Belarusian
+;  850  = Western European          852  = Central European
+;  855  = Cyrillic                  857  = Turkish
+;  858  = Western European + Euro   860  = Portuguese
+;  861  = Icelandic                 862  = Hebrew
+;  863  = French Canadian           864  = Arabic
+;  865  = Nordic                    866  = Russian
+;  869  = Greek Modern              872  = Cyrillic
+;  874  = Thai                      932  = Japanese (Shift-JIS)
+;  934  = Korean                    936  = Chinese Simplified
+; 1125  = Ukrainian                1131  = Belarusian
+; 1258  = Vietnamese              30033  = Bulgarian MIK
 
-; file header
+; ==============================================================================
+; COUNTRY* MACROS
+; ==============================================================================
+;
+; Purpose:
+;   Singular macro to specify data for 3 different structures in COUNTRY.SYS
+;   Each COUNTRY* macro row corresponds to a complete country/codepage set of:
+;     1. Entry table record
+;     2. Subfunction header
+;     3. Country info structure
+;
+;-------------------------------------------------------------------------------
+; PARAMETER REFERENCE
+;-------------------------------------------------------------------------------
+;
+; Standard Parameters (always required)
+; Warning: %2/%5 onward shift up one for COUNTRY* macros with optional params
+;   %1  - Country code (numeric, international phone code, e.g., 1 for US, 49 for Germany)
+;   %2  - Codepage number (e.g., 437, 850, 858)
+;   %3  - Collate table label (e.g., en_collate_437)
+;   %4  - Yes/No table label (e.g., en_yn)
+;   %5  - Date format: (MDY=0, DMY=1, YMD=2)
+;   %6-10 Currency symbol (up to 4 bytes plus null terminator, 0 padded)
+;   %6  - Currency symbol char 1 (e.g., "$", 0D5h for Euro)
+;   %7  - Currency symbol char 2 (or 0 if unused)
+;   %8  - Currency symbol char 3 (or 0 if unused)
+;   %9  - Currency symbol char 4 (or 0 if unused)
+;   %10 - Currency symbol char 5 (always 0)
+;   %11 - Thousands separator (e.g., ',' or '.')
+;   %12 - Decimal separator (e.g., '.' or ',')
+;   %13 - Date separator (e.g., '/', '-', '.')
+;   %14 - Time separator (usually ':')
+;   %15 - Currency format flags: (0-7)
+;          bit 0: 0=symbol precedes value, 1=symbol follows value
+;          bit 1: number of spaces between value and symbol
+;          bit 2: 1=symbol replaces decimal point
+;   %16 - Currency precision (decimal places, typically 2)
+;   %17 - Time format: _12 (0=12-hour with AM/PM) or _24 (1=24-hour)
+;
+; Optional Parameters (handled by extended macros):
+;   - %2, multilang: Language index for multilingual countries (0-9)
+;   - %5, lcase: Lowercase mapping table (if different from uppercase inverse)
+;   - %5, dbcs: DBCS table (defaults to dbcs_empty)
+;
+;-------------------------------------------------------------------------------
+
+;-------------------------------------------------------------------------------
+; CONSTANTS AND DATE FORMAT DEFINITIONS
+;-------------------------------------------------------------------------------
+
+MDY equ 0       ; Month-Day-Year (US format)
+DMY equ 1       ; Day-Month-Year (European format)
+YMD equ 2       ; Year-Month-Day (ISO format)
+
+_12 equ 0       ; 12-hour clock
+_24 equ 1       ; 24-hour clock
+
+;-------------------------------------------------------------------------------
+; INTERNAL MACRO: _cnf_data
+;-------------------------------------------------------------------------------
+; Generates the country info data structure (subfunction 1 data).
+; This is the core 22-byte country info block.
+;-------------------------------------------------------------------------------
+%macro _cnf_data 15
+    db 0FFh,"CTYINFO"           ; Signature
+    dw 22                       ; Length of data
+    dw %1, %2, %3               ; Country ID, Codepage, Date format
+    db %4, %5, %6, %7, %8       ; Currency symbol (5 bytes)
+    db %9, %10                  ; Thousands sep, Decimal sep
+    db %11, %12                 ; Date sep, Time sep
+    db %13                      ; Currency format
+    db %14                      ; Decimal places
+    db %15                      ; Time format
+    dw 0, 0                     ; Reserved
+%endmacro
+
+;-------------------------------------------------------------------------------
+; INTERNAL MACRO: _ucase_for_cp
+;-------------------------------------------------------------------------------
+; Returns the uppercase table label for a given codepage.
+; Uses preprocessor to map codepage to ucase_XXX label.
+;-------------------------------------------------------------------------------
+%define _ucase(cp) ucase_ %+ cp
+%define _fchar_label fchar
+
+;-------------------------------------------------------------------------------
+; MAIN MACRO: COUNTRY
+;-------------------------------------------------------------------------------
+;
+; Creates a complete country entry with all components:
+;   - Entry table record
+;   - Subfunction header (7 subfunctions, use COUNTRY_LCASE if has lcase table)
+;   - Country info data structure
+;
+; Syntax:
+;   COUNTRY cc, cp, collate, yesno, datefmt, cur1,cur2,cur3,cur4,cur5, \
+;           ksep, dsep, datesep, timesep, curfmt, decpl, timefmt
+;
+; Example:
+;   COUNTRY 1, 437, en_collate_437, en_yn, MDY, "$",0,0,0,0, ",",".","-",":", 0,2,_12
+;
+; Generated labels (for cc=1, cp=437):
+;   __e_1_437 - Entry table record
+;   _h_1_437  - Subfunction header
+;   ci_1_437  - Country info data
+;-------------------------------------------------------------------------------
+
+%macro COUNTRY 17
+section .data1 align=1
+    ; === SECTION 1: Entry Table Record ===
+    ; Format: dw size, country, codepage, reserved(2); dd offset
+__e_%1_%2:
+    dw 12, %1, %2, 0, 0
+    dd _h_%1_%2
+
+section .data2 align=1
+    ; === SECTION 2: Subfunction Header ===
+    ; Count of subfunctions followed by (size, id, offset) triplets
+_h_%1_%2:
+    dw 7                            ; 7 standard subfunctions
+    dw 6, 1                         ; Subfunction 1: Country info
+      dd ci_%1_%2
+    dw 6, 2                         ; Subfunction 2: Uppercase table
+      dd _ucase(%2)
+    dw 6, 4                         ; Subfunction 4: Filename uppercase
+      dd _ucase(%2)
+    dw 6, 5                         ; Subfunction 5: Filename chars
+      dd fchar
+    dw 6, 6                         ; Subfunction 6: Collating sequence
+      dd %3
+    dw 6, 7                         ; Subfunction 7: DBCS table
+      dd dbcs_empty
+    dw 6, 35                        ; Subfunction 35: Yes/No chars
+      dd %4
+
+section .data3 align=1
+    ; === SECTION 3: Country Info Data ===
+ci_%1_%2:
+    _cnf_data %1, %2, %5, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17
+%endmacro
+
+;-------------------------------------------------------------------------------
+; EXTENDED MACRO: COUNTRY_LCASE
+;-------------------------------------------------------------------------------
+;
+; Same as COUNTRY but includes a lowercase mapping table (subfunction 3).
+; Use this for languages where lowercase mapping differs from uppercase inverse.
+;
+; Syntax:
+;   COUNTRY_LCASE cc, cp, collate, yesno, lcase_table, datefmt, cur1,...
+;
+; Example:
+;   COUNTRY_LCASE 7, 866, ru_collate_866, ru_yn_866, lcase_866, DMY, ...
+;-------------------------------------------------------------------------------
+
+%macro COUNTRY_LCASE 18
+section .data1 align=1
+    ; === SECTION 1: Entry Table Record ===
+__e_%1_%2:
+    dw 12, %1, %2, 0, 0
+    dd _h_%1_%2
+
+section .data2 align=1
+    ; === SECTION 2: Subfunction Header (8 subfunctions with lcase) ===
+_h_%1_%2:
+    dw 8                            ; 8 subfunctions (includes lcase)
+    dw 6, 1                         ; Subfunction 1: Country info
+      dd ci_%1_%2
+    dw 6, 2                         ; Subfunction 2: Uppercase table
+      dd _ucase(%2)
+    dw 6, 3                         ; Subfunction 3: Lowercase table
+      dd %5
+    dw 6, 4                         ; Subfunction 4: Filename uppercase
+      dd _ucase(%2)
+    dw 6, 5                         ; Subfunction 5: Filename chars
+      dd fchar
+    dw 6, 6                         ; Subfunction 6: Collating sequence
+      dd %3
+    dw 6, 7                         ; Subfunction 7: DBCS table
+      dd dbcs_empty
+    dw 6, 35                        ; Subfunction 35: Yes/No chars
+      dd %4
+
+section .data3 align=1
+    ; === SECTION 3: Country Info Data ===
+ci_%1_%2:
+    _cnf_data %1, %2, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
+%endmacro
+
+;-------------------------------------------------------------------------------
+; EXTENDED MACRO: COUNTRY_DBCS
+;-------------------------------------------------------------------------------
+;
+; Same as COUNTRY but with a custom DBCS table (for CJK languages).
+;
+; Syntax:
+;   COUNTRY_DBCS cc, cp, collate, yesno, dbcs_table, datefmt, cur1,...
+;-------------------------------------------------------------------------------
+
+%macro COUNTRY_DBCS 18
+section .data1 align=1
+    ; === SECTION 1: Entry Table Record ===
+__e_%1_%2:
+    dw 12, %1, %2, 0, 0
+    dd _h_%1_%2
+
+section .data2 align=1
+    ; === SECTION 2: Subfunction Header ===
+_h_%1_%2:
+    dw 7
+    dw 6, 1
+      dd ci_%1_%2
+    dw 6, 2
+      dd _ucase(%2)
+    dw 6, 4
+      dd _ucase(%2)
+    dw 6, 5
+      dd fchar
+    dw 6, 6
+      dd %3
+    dw 6, 7
+      dd %5                         ; Custom DBCS table
+    dw 6, 35
+      dd %4
+
+section .data3 align=1
+    ; === SECTION 3: Country Info Data ===
+ci_%1_%2:
+    _cnf_data %1, %2, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
+%endmacro
+
+;-------------------------------------------------------------------------------
+; MULTILINGUAL MACRO: COUNTRY_ML
+;-------------------------------------------------------------------------------
+;
+; For multilingual countries (extended codes 4XNNN format).
+; The country code is computed as: 40000 + (multilang_index * 1000) + base_country
+;
+; Syntax:
+;   COUNTRY_ML base_cc, multilang_idx, cp, collate, yesno, datefmt, cur1,...
+;
+; Example:
+;   ; Belgium/Dutch (40032) = base 32, multilang 0
+;   COUNTRY_ML 32, 0, 850, nl_collate_850, nl_yn, DMY, "E","U","R",0,0, ...
+;   ; Spain/Catalan (41034) = base 34, multilang 1
+;   COUNTRY_ML 34, 1, 850, ca_collate_850, ca_yn, DMY, "E","U","R",0,0, ...
+;-------------------------------------------------------------------------------
+
+%macro COUNTRY_ML 18
+    ; Compute extended country code: (4 multilang base = 4XNNN)
+    %assign _extended_cc (40000 + (%2 * 1000) + %1)
+
+section .data1 align=1
+    ; === SECTION 1: Entry Table Record ===
+__e_%[_extended_cc]_%3:
+    dw 12, _extended_cc, %3, 0, 0
+    dd _h_%[_extended_cc]_%3
+
+section .data2 align=1
+    ; === SECTION 2: Subfunction Header ===
+_h_%[_extended_cc]_%3:
+    dw 7
+    dw 6, 1
+      dd ci_%[_extended_cc]_%3
+    dw 6, 2
+      dd _ucase(%3)
+    dw 6, 4
+      dd _ucase(%3)
+    dw 6, 5
+      dd fchar
+    dw 6, 6
+      dd %4
+    dw 6, 7
+      dd dbcs_empty
+    dw 6, 35
+      dd %5
+
+section .data3 align=1
+    ; === SECTION 3: Country Info Data ===
+ci_%[_extended_cc]_%3:
+    _cnf_data _extended_cc, %3, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
+%endmacro
+
+;-------------------------------------------------------------------------------
+; OBSOLETE WRAPPER MACROS
+;-------------------------------------------------------------------------------
+;
+; These macros wrap entries in %ifdef OBSOLETE blocks for backward
+; compatibility with legacy country codes.
+;-------------------------------------------------------------------------------
+
+%macro OLD_COUNTRY 17
+%ifdef OBSOLETE
+    COUNTRY %1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17
+%endif
+%endmacro
+
+%macro OLD_COUNTRY_LCASE 18
+%ifdef OBSOLETE
+    COUNTRY_LCASE %1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
+%endif
+%endmacro
+
+%macro OLD_COUNTRY_ML 18
+%ifdef OBSOLETE
+    COUNTRY_ML %1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12, %13, %14, %15, %16, %17, %18
+%endif
+%endmacro
+
+%macro COUNTRY_ENTRIES_START 0
+section .data1 align=1
+country_entries_start:
+%endmacro
+
+%macro COUNTRY_ENTRIES_END 0
+section .data1 align=1
+country_entries_end:
+%endmacro
+
+[map all country.map]
+
+;-------------------------------------------------------------------------------
+; USAGE EXAMPLES
+;-------------------------------------------------------------------------------
+;
+; Example 1: Standard single-language country (United States)
+; -----------------------------------------------------------------
+; COUNTRY 1, 437, en_collate_437, en_yn, MDY, "$",0,0,0,0, ",",".","-",":", 0,2,_12
+; COUNTRY 1, 850, en_collate_850, en_yn, MDY, "$",0,0,0,0, ",",".","-",":", 0,2,_12
+;
+; Example 2: Country with lowercase table (Russia cp866)
+; -----------------------------------------------------------------
+; COUNTRY_LCASE 7, 866, ru_collate_866, ru_yn_866, lcase_866, DMY, 0E0h,".",0,0,0, " ",",",".",":", 3,2,_24
+;
+; Example 3: Multilingual country (Belgium/Dutch)
+; -----------------------------------------------------------------
+; COUNTRY_ML 32, 0, 850, nl_collate_850, nl_yn, DMY, "E","U","R",0,0, ".",",","/",":", 0,2,_24
+;
+; Example 4: DBCS country (Japan)
+; -----------------------------------------------------------------
+; COUNTRY_DBCS 81, 932, jp_collate_932, jp_yn, dbcs_japan, YMD, 5Ch,0,0,0,0, ",",".","-",":", 0,0,_24
+;
+; Example 5: Obsolete country (wrapped in %ifdef OBSOLETE)
+; -----------------------------------------------------------------
+; OLD_COUNTRY 38, 852, yu_collate_852, sh_yn, YMD, "D","i","n",0,0, ".",",","-",":", 2,2,_24
+
+
+; ==============================================================================
+; 1: FILE HEADER
+; ==============================================================================
+;
+; The file header contains the magic signature 'COUNTRY' and points to
+; the entry table. Structure:
+;   - Byte 0: 0FFh (signature)
+;   - Bytes 1-7: 'COUNTRY' (magic string)
+;   - Bytes 8-17: Reserved/undocumented
+;   - Bytes 18-21: Pointer to entry table
+;
+
+section .data align=1
 
 db 0FFh,"COUNTRY",0,0,0,0,0,0,0,0,1,0,1 ; reserved and undocumented values
-dd  ent	 ; first entry
-ent dw 189; number of entries - don't forget to update when adding a new country
+dd  ent     ; first entry
+ent dw  (country_entries_end - country_entries_start) / 14
 
-; entries
-; (size, country, codepage, reserved(2), offset)
-
-; Countries 0 - 999 (Standard)
+; ==============================================================================
+; 2: COUNTRY ENTRIES
+; ==============================================================================
 ;
-__us_437 dw 12,	 1,437,0,0
-	 dd _us_437
-__us_850 dw 12,	 1,850,0,0
-	 dd _us_850
-__us_858 dw 12,	 1,858,0,0
-	 dd _us_858
-__ca_863 dw 12,	 2,863,0,0
-	 dd _ca_863
-__ca_850 dw 12,	 2,850,0,0
-	 dd _ca_850
-__ca_858 dw 12,	 2,858,0,0
-	 dd _ca_858
-__la_858 dw 12,	 3,858,0,0
-	 dd _la_858
-__la_850 dw 12,	 3,850,0,0
-	 dd _la_850
-__la_437 dw 12,	 3,437,0,0
-	 dd _la_437
-__ru_866 dw 12,	 7,866,0,0
-	 dd _ru_866
-__ru_808 dw 12,	 7,808,0,0
-	 dd _ru_808
-__ru_855 dw 12,	 7,855,0,0
-	 dd _ru_855
-__ru_872 dw 12,	 7,872,0,0
-	 dd _ru_872
-__ru_852 dw 12,	 7,852,0,0
-	 dd _ru_852
-__ru_850 dw 12,	 7,850,0,0
-	 dd _ru_850
-__ru_858 dw 12,	 7,858,0,0
-	 dd _ru_858
-__ru_437 dw 12,	 7,437,0,0
-	 dd _ru_437
-__gr_869 dw 12, 30,869,0,0
-	 dd _gr_869
-__gr_737 dw 12, 30,737,0,0
-	 dd _gr_737
-__gr_850 dw 12, 30,850,0,0
-	 dd _gr_850
-__gr_858 dw 12, 30,858,0,0
-	 dd _gr_858
-__nl_858 dw 12, 31,858,0,0
-	 dd _nl_858
-__nl_850 dw 12, 31,850,0,0
-	 dd _nl_850
-__nl_437 dw 12, 31,437,0,0
-	 dd _nl_437
-__be_858 dw 12, 32,858,0,0
-	 dd _be_858
-__be_850 dw 12, 32,850,0,0
-	 dd _be_850
-__be_437 dw 12, 32,437,0,0
-	 dd _be_437
-__fr_858 dw 12, 33,858,0,0
-	 dd _fr_858
-__fr_850 dw 12, 33,850,0,0
-	 dd _fr_850
-__fr_437 dw 12, 33,437,0,0
-	 dd _fr_437
-__es_858 dw 12, 34,858,0,0
-	 dd _es_858
-__es_850 dw 12, 34,850,0,0
-	 dd _es_850
-__es_437 dw 12, 34,437,0,0
-	 dd _es_437
-__hu_852 dw 12, 36,852,0,0
-	 dd _hu_852
-__hu_850 dw 12, 36,850,0,0
-	 dd _hu_850
-__hu_858 dw 12, 36,858,0,0
-	 dd _hu_858
-__it_858 dw 12, 39,858,0,0
-	 dd _it_858
-__it_850 dw 12, 39,850,0,0
-	 dd _it_850
-__it_437 dw 12, 39,437,0,0
-	 dd _it_437
-__ro_852 dw 12, 40,852,0,0
-	 dd _ro_852
-__ro_850 dw 12, 40,850,0,0
-	 dd _ro_850
-__ro_858 dw 12, 40,858,0,0
-	 dd _ro_858
-__ch_858 dw 12, 41,858,0,0
-	 dd _ch_858
-__ch_850 dw 12, 41,850,0,0
-	 dd _ch_850
-__ch_437 dw 12, 41,437,0,0
-	 dd _ch_437
-__at_858 dw 12, 43,858,0,0
-	 dd _at_858
-__at_850 dw 12, 43,850,0,0
-	 dd _at_850
-__at_437 dw 12, 43,437,0,0
-	 dd _at_437
-__gb_858 dw 12, 44,858,0,0
-	 dd _gb_858
-__gb_850 dw 12, 44,850,0,0
-	 dd _gb_850
-__gb_437 dw 12, 44,437,0,0
-	 dd _gb_437
-__dk_865 dw 12, 45,865,0,0
-	 dd _dk_865
-__dk_850 dw 12, 45,850,0,0
-	 dd _dk_850
-__dk_858 dw 12, 45,858,0,0
-	 dd _dk_858
-__se_858 dw 12, 46,858,0,0
-	 dd _se_858
-__se_850 dw 12, 46,850,0,0
-	 dd _se_850
-__se_437 dw 12, 46,437,0,0
-	 dd _se_437
-__no_865 dw 12, 47,865,0,0
-	 dd _no_865
-__no_850 dw 12, 47,850,0,0
-	 dd _no_850
-__no_858 dw 12, 47,858,0,0
-	 dd _no_858
-__pl_852 dw 12, 48,852,0,0
-	 dd _pl_852
-__pl_850 dw 12, 48,850,0,0
-	 dd _pl_850
-__pl_858 dw 12, 48,858,0,0
-	 dd _pl_858
-__de_858 dw 12, 49,858,0,0
-	 dd _de_858
-__de_850 dw 12, 49,850,0,0
-	 dd _de_850
-__de_437 dw 12, 49,437,0,0
-	 dd _de_437
-__ar_858 dw 12, 54,858,0,0
-	 dd _ar_858
-__ar_850 dw 12, 54,850,0,0
-	 dd _ar_850
-__ar_437 dw 12, 54,437,0,0
-	 dd _ar_437
-__br_858 dw 12, 55,858,0,0
-	 dd _br_858
-__br_850 dw 12, 55,850,0,0
-	 dd _br_850
-__br_437 dw 12, 55,437,0,0
-	 dd _br_437
-__my_437 dw 12, 60,437,0,0
-	 dd _my_437
-__au_437 dw 12, 61,437,0,0
-	 dd _au_437
-__au_850 dw 12, 61,850,0,0
-	 dd _au_850
-__au_858 dw 12, 61,858,0,0
-	 dd _au_858
-__sg_437 dw 12, 65,437,0,0
-	 dd _sg_437
-__jp_437 dw 12, 81,437,0,0
-	 dd _jp_437
-__jp_932 dw 12, 81,932,0,0
-	 dd _jp_932
-__kr_437 dw 12, 82,437,0,0
-	 dd _kr_437
-__kr_934 dw 12, 82,934,0,0
-	 dd _kr_934
-__cn_437 dw 12, 86,437,0,0
-	 dd _cn_437
-__cn_936 dw 12, 86,936,0,0
-	 dd _cn_936
-__tr_857 dw 12, 90,857,0,0
-	 dd _tr_857
-__tr_850 dw 12, 90,850,0,0
-	 dd _tr_850
-__in_437 dw 12, 91,437,0,0
-	 dd _in_437
-__pt_860 dw 12,351,860,0,0
-	 dd _pt_860
-__pt_850 dw 12,351,850,0,0
-	 dd _pt_850
-__pt_858 dw 12,351,858,0,0
-	 dd _pt_858
-__fi_858 dw 12,358,858,0,0
-	 dd _fi_858
-__fi_850 dw 12,358,850,0,0
-	 dd _fi_850
-__fi_437 dw 12,358,437,0,0
-	 dd _fi_437
-__bg_855 dw 12,359,855,0,0
-	 dd _bg_855
-__bg_872 dw 12,359,872,0,0
-	 dd _bg_872
-__bg_850 dw 12,359,850,0,0
-	 dd _bg_850
-__bg_858 dw 12,359,858,0,0
-	 dd _bg_858
-__bg_866 dw 12,359,866,0,0
-	 dd _bg_866
-__bg_808 dw 12,359,808,0,0
-	 dd _bg_808
-__bg_849 dw 12,359,849,0,0
-	 dd _bg_849
-__bg_1131 dw 12,359,1131,0,0
-	 dd _bg_1131
-__bg_30033 dw 12,359,30033,0,0
-	 dd _bg_30033
-__by_849 dw 12,375,849,0,0
-	 dd _by_849
-__by_1131 dw 12,375,1131,0,0
-	 dd _by_1131
-__by_850 dw 12,375,850,0,0
-	 dd _by_850
-__by_858 dw 12,375,858,0,0
-	 dd _by_858
-__ua_848 dw 12,380,848,0,0
-	 dd _ua_848
-__ua_1125 dw 12,380,1125,0,0
-	 dd _ua_1125
-__rs_855 dw 12, 381,855,0,0 ; Serbia, Cyrillic
-	 dd _rs_855
-__rs_872 dw 12, 381,872,0,0
-	 dd _rs_872
-__rs_852 dw 12, 381,852,0,0 ; Serbia, Latin
-	 dd _rs_852
-__rs_850 dw 12, 381,850,0,0
-	 dd _rs_850
-__rs_858 dw 12, 381,858,0,0
-	 dd _rs_858
-__me_852 dw 12, 382,852,0,0 ; Montenegro
-	 dd _si_852
-__me_850 dw 12, 382,850,0,0
-	 dd _si_850
-__me_858 dw 12, 382,858,0,0
-	 dd _si_858
-__xk_852 dw 12, 383,852,0,0 ; Kosovo (Temporary code)
-	 dd _xk_852
-__xk_855 dw 12, 383,855,0,0
-	 dd _xk_855
-__xk_872 dw 12, 383,872,0,0
-	 dd _xk_872
-__xk_858 dw 12, 383,858,0,0
-	 dd _xk_858
-__xk_850 dw 12, 383,850,0,0
-	 dd _xk_850
-__hr_852 dw 12, 385,852,0,0 ; Croatia
-	 dd _hr_852
-__hr_850 dw 12, 385,850,0,0
-	 dd _hr_850
-__hr_858 dw 12, 385,858,0,0
-	 dd _hr_858
-__si_852 dw 12, 386,852,0,0 ; Slovenia
-	 dd _si_852
-__si_850 dw 12, 386,850,0,0
-	 dd _si_850
-__si_858 dw 12, 386,858,0,0
-	 dd _si_858
-__ba_852 dw 12, 387,852,0,0 ; Bosnia Herzegovina
-	 dd _ba_852
-__ba_850 dw 12, 387,850,0,0
-	 dd _ba_850
-__ba_858 dw 12, 387,858,0,0
-	 dd _ba_858
-__ba_855 dw 12, 387,855,0,0 ; Bosnia Herzegovina, Cyrillic
-	 dd _rs_855
-__ba_872 dw 12, 387,872,0,0
-	 dd _rs_872
-__mk_855 dw 12, 389,855,0,0 ; Macedonia
-	 dd _mk_855
-__mk_872 dw 12, 389,872,0,0
-	 dd _mk_872
-__mk_850 dw 12, 389,850,0,0
-	 dd _mk_850
-__mk_858 dw 12, 389,858,0,0
-	 dd _mk_858
-__cz_852 dw 12, 420,852,0,0
-	 dd _cz_852
-__cz_850 dw 12, 420,850,0,0
-	 dd _cz_850
-__cz_858 dw 12, 420,858,0,0
-	 dd _cz_858
-__sk_852 dw 12, 421,852,0,0
-	 dd _cz_852
-__sk_850 dw 12, 421,850,0,0
-	 dd _cz_850
-__sk_858 dw 12, 421,858,0,0
-	 dd _cz_858
-__xx_858 dw 12,785,858,0,0
-	 dd _xx_858
-__xx_850 dw 12,785,850,0,0
-	 dd _xx_850
-__xx_864 dw 12,785,864,0,0
-	 dd _xx_864
-__il_858 dw 12,972,858,0,0
-	 dd _il_858
-__il_850 dw 12,972,850,0,0
-	 dd _il_850
-__il_862 dw 12,972,862,0,0
-	 dd _il_862
-; --- Iceland (Country 354, ISO: IS, Language: Icelandic/is) ---
-__is_861 dw 12, 354,861,0,0
-	 dd _is_861
-__is_850 dw 12, 354,850,0,0
-	 dd _is_850
-__is_858 dw 12, 354,858,0,0
-	 dd _is_858
-; --- Estonia (Country 372, ISO: EE, Language: Estonian/et) ---
-__ee_775 dw 12, 372,775,0,0
-	 dd _ee_775
-__ee_850 dw 12, 372,850,0,0
-	 dd _ee_850
-__ee_858 dw 12, 372,858,0,0
-	 dd _ee_858
-; --- Latvia (Country 371, ISO: LV, Language: Latvian/lv) ---
-__lv_775 dw 12, 371,775,0,0
-	 dd _lv_775
-__lv_850 dw 12, 371,850,0,0
-	 dd _lv_850
-__lv_858 dw 12, 371,858,0,0
-	 dd _lv_858
-; --- Lithuania (Country 370, ISO: LT, Language: Lithuanian/lt) ---
-__lt_775 dw 12, 370,775,0,0
-	 dd _lt_775
-__lt_850 dw 12, 370,850,0,0
-	 dd _lt_850
-__lt_858 dw 12, 370,858,0,0
-	 dd _lt_858
-; --- omitted: Brazil-PB, Esperanto(no country), slovenian, swedish, ukrainian
-
-; Countries 4x000 - 4x999 (Multilingual)
+; Each COUNTRY* macro generates entry table + subfunction header + country info
 ;
-__nl_BE_850 dw 12, 40032,850,0,0
-	 dd _nl_BE_850
-__nl_BE_858 dw 12, 40032,858,0,0
-	 dd _nl_BE_858
-__nl_BE_437 dw 12, 40032,437,0,0
-	 dd _nl_BE_437
-__fr_BE_850 dw 12, 41032,850,0,0
-	 dd _fr_BE_850
-__fr_BE_858 dw 12, 41032,858,0,0
-	 dd _fr_BE_858
-__fr_BE_437 dw 12, 41032,437,0,0
-	 dd _fr_BE_437
-__de_BE_850 dw 12, 42032,850,0,0
-	 dd _de_BE_850
-__de_BE_858 dw 12, 42032,858,0,0
-	 dd _de_BE_858
-__de_BE_437 dw 12, 42032,437,0,0
-	 dd _de_BE_437
-__es_ES_850 dw 12, 40034,850,0,0
-	 dd _es_ES_850
-__es_ES_858 dw 12, 40034,858,0,0
-	 dd _es_ES_858
-__es_ES_437 dw 12, 40034,437,0,0
-	 dd _es_ES_437
-__ca_ES_850 dw 12, 41034,850,0,0
-	 dd _ca_ES_850
-__ca_ES_858 dw 12, 41034,858,0,0
-	 dd _ca_ES_858
-__ca_ES_437 dw 12, 41034,437,0,0
-	 dd _ca_ES_437
-__gl_ES_850 dw 12, 42034,850,0,0
-	 dd _gl_ES_850
-__gl_ES_858 dw 12, 42034,858,0,0
-	 dd _gl_ES_858
-__gl_ES_437 dw 12, 42034,437,0,0
-	 dd _gl_ES_437
-__eu_ES_850 dw 12, 43034,850,0,0
-	 dd _eu_ES_850
-__eu_ES_858 dw 12, 43034,858,0,0
-	 dd _eu_ES_858
-__eu_ES_437 dw 12, 43034,437,0,0
-	 dd _eu_ES_437
-__de_CH_858 dw 12, 40041,858,0,0
-	 dd _de_CH_858
-__de_CH_850 dw 12, 40041,850,0,0
-	 dd _de_CH_850
-__de_CH_437 dw 12, 40041,437,0,0
-	 dd _de_CH_437
-__fr_CH_858 dw 12, 41041,858,0,0
-	 dd _fr_CH_858
-__fr_CH_850 dw 12, 41041,850,0,0
-	 dd _fr_CH_850
-__fr_CH_437 dw 12, 41041,437,0,0
-	 dd _fr_CH_437
-__it_CH_858 dw 12, 42041,858,0,0
-	 dd _it_CH_858
-__it_CH_850 dw 12, 42041,850,0,0
-	 dd _it_CH_850
-__it_CH_437 dw 12, 42041,437,0,0
-	 dd _it_CH_437
 
-; subfunction headers
-; (count, size, id, offset)
-; add ofher subfunctions after each one
-; - Subfunction 1: Country information (date/time/currency format)
-; - Subfunction 2: Uppercase table
-; - Subfunction 3: Lowercase table (if different from uppercase)
-; - Subfunction 4: Filename uppercase table
-; - Subfunction 5: Filename character table
-; - Subfunction 6: Collating sequence table (sorting order)
-; - Subfunction 7: DBCS (Double Byte Character Set) table
-; - Subfunction 35: Yes/No prompt characters
+COUNTRY_ENTRIES_START
 
-_us_437 dw 7
-	dw 6,1
-	  dd us_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_us_850 dw 7
-	dw 6,1
-	  dd us_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_us_858 dw 7
-	dw 6,1
-	  dd us_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_ca_863 dw 7
-	dw 6,1
-	  dd ca_863
-	dw 6,2
-	  dd ucase_863
-	dw 6,4
-	  dd ucase_863
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_863
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_ca_850 dw 7
-	dw 6,1
-	  dd ca_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_ca_858 dw 7
-	dw 6,1
-	  dd ca_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_la_850 dw 7
-	dw 6,1
-	  dd la_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_la_858 dw 7
-	dw 6,1
-	  dd la_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_la_437 dw 7
-	dw 6,1
-	  dd la_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_ru_866 dw 8
-	dw 6,1
-	  dd ru_866
-	dw 6,2
-	  dd ucase_866
-	dw 6,3
-	  dd lcase_866
-	dw 6,4
-	  dd ucase_866
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ru_collate_866
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ru_yn_866
-_ru_808 dw 8
-	dw 6,1
-	  dd ru_808
-	dw 6,2
-	  dd ucase_808
-	dw 6,3
-	  dd lcase_808
-	dw 6,4
-	  dd ucase_808
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ru_collate_808
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ru_yn_808
-_ru_855 dw 7
-	dw 6,1
-	  dd ru_855
-	dw 6,2
-	  dd ucase_855
-	dw 6,4
-	  dd ucase_855
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ru_collate_855
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ru_yn_855
-_ru_872 dw 7
-	dw 6,1
-	  dd ru_872
-	dw 6,2
-	  dd ucase_872
-	dw 6,4
-	  dd ucase_872
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ru_collate_872
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ru_yn_872
-_ru_852 dw 7
-	dw 6,1
-	  dd ru_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ru_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ru_yn
-_ru_850 dw 7
-	dw 6,1
-	  dd ru_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ru_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ru_yn
-_ru_858 dw 7
-	dw 6,1
-	  dd ru_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ru_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ru_yn
-_ru_437 dw 7
-	dw 6,1
-	  dd ru_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ru_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ru_yn
-_gr_869	dw 7
-	dw 6,1
-	  dd gr_869
-	dw 6,2
-	  dd ucase_869
-	dw 6,4
-	  dd ucase_869
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd gr_collate_869
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd gr_yn_869
-_gr_737	dw 7
-	dw 6,1
-	  dd gr_737
-	dw 6,2
-	  dd ucase_737
-	dw 6,4
-	  dd ucase_737
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd gr_collate_737
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd gr_yn_737
-_gr_850	dw 7
-	dw 6,1
-	  dd gr_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd gr_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd gr_yn
-_gr_858	dw 7
-	dw 6,1
-	  dd gr_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd gr_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd gr_yn
-_nl_850 dw 7
-	dw 6,1
-	  dd nl_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd nl_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd nl_yn
-_nl_858 dw 7
-	dw 6,1
-	  dd nl_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd nl_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd nl_yn
-_nl_437 dw 7
-	dw 6,1
-	  dd nl_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd nl_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd nl_yn
-_be_850 dw 7
-	dw 6,1
-	  dd be_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd be_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd nl_yn
-_be_858 dw 7
-	dw 6,1
-	  dd be_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd be_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd nl_yn
-_be_437 dw 7
-	dw 6,1
-	  dd be_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd be_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd nl_yn
-_fr_850 dw 7
-	dw 6,1
-	  dd fr_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_fr_858 dw 7
-	dw 6,1
-	  dd fr_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_fr_437 dw 7
-	dw 6,1
-	  dd fr_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_es_850 dw 7
-	dw 6,1
-	  dd es_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_es_858 dw 7
-	dw 6,1
-	  dd es_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_es_437 dw 7
-	dw 6,1
-	  dd es_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_hu_852 dw 7
-	dw 6,1
-	  dd hu_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd hu_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd hu_yn
-_hu_850 dw 7
-	dw 6,1
-	  dd hu_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd hu_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd hu_yn
-_hu_858 dw 7
-	dw 6,1
-	  dd hu_850
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd hu_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd hu_yn
-_xk_852 dw 7
-	dw 6,1
-	  dd xk_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_xk_855 dw 7
-	dw 6,1
-	  dd xk_855
-	dw 6,2
-	  dd ucase_855
-	dw 6,4
-	  dd ucase_855
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_855
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn_855
-_xk_872 dw 7
-	dw 6,1
-	  dd xk_872
-	dw 6,2
-	  dd ucase_872
-	dw 6,4
-	  dd ucase_872
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_872
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn_872
-_xk_850 dw 7
-	dw 6,1
-	  dd xk_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_xk_858 dw 7
-	dw 6,1
-	  dd xk_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_it_850 dw 7
-	dw 6,1
-	  dd it_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd it_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd it_yn
-_it_858 dw 7
-	dw 6,1
-	  dd it_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd it_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd it_yn
-_it_437 dw 7
-	dw 6,1
-	  dd it_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd it_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd it_yn
-_ro_852 dw 7
-	dw 6,1
-	  dd ro_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ro_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ro_yn
-_ro_850 dw 7
-	dw 6,1
-	  dd ro_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ro_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ro_yn
-_ro_858 dw 7
-	dw 6,1
-	  dd ro_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ro_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ro_yn
-_ch_850 dw 7
-	dw 6,1
-	  dd ch_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ch_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_ch_858 dw 7
-	dw 6,1
-	  dd ch_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ch_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_ch_437 dw 7
-	dw 6,1
-	  dd ch_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ch_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_cz_852 dw 7
-	dw 6,1
-	  dd cz_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd cz_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd cz_yn
-_cz_850 dw 7
-	dw 6,1
-	  dd cz_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd cz_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd cz_yn
-_cz_858 dw 7
-	dw 6,1
-	  dd cz_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd cz_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd cz_yn
-_sk_852 dw 7
-	dw 6,1
-	  dd sk_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sk_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sk_yn
-_sk_850 dw 7
-	dw 6,1
-	  dd sk_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sk_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sk_yn
-_sk_858 dw 7
-	dw 6,1
-	  dd sk_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sk_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sk_yn
-_at_850 dw 7
-	dw 6,1
-	  dd at_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_at_858 dw 7
-	dw 6,1
-	  dd at_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_at_437 dw 7
-	dw 6,1
-	  dd at_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_gb_850 dw 7
-	dw 6,1
-	  dd gb_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_gb_858 dw 7
-	dw 6,1
-	  dd gb_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_gb_437 dw 7
-	dw 6,1
-	  dd gb_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_dk_865 dw 7
-	dw 6,1
-	  dd dk_865
-	dw 6,2
-	  dd ucase_865
-	dw 6,4
-	  dd ucase_865
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd dk_collate_865
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd dk_yn
-_dk_850 dw 7
-	dw 6,1
-	  dd dk_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd dk_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd dk_yn
-_dk_858 dw 7
-	dw 6,1
-	  dd dk_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd dk_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd dk_yn
-_se_850 dw 7
-	dw 6,1
-	  dd se_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd se_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd se_yn
-_se_858 dw 7
-	dw 6,1
-	  dd se_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd se_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd se_yn
-_se_437 dw 7
-	dw 6,1
-	  dd se_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd se_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd se_yn
-_no_865 dw 7
-	dw 6,1
-	  dd no_865
-	dw 6,2
-	  dd ucase_865
-	dw 6,4
-	  dd ucase_865
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd no_collate_865
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd no_yn
-_no_850 dw 7
-	dw 6,1
-	  dd no_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd no_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd no_yn
-_no_858 dw 7
-	dw 6,1
-	  dd no_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd no_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd no_yn
-_pl_852 dw 7
-	dw 6,1
-	  dd pl_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd pl_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd pl_yn
-_pl_850 dw 7
-	dw 6,1
-	  dd pl_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd pl_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd pl_yn
-_pl_858 dw 7
-	dw 6,1
-	  dd pl_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd pl_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd pl_yn
-_de_850 dw 7
-	dw 6,1
-	  dd de_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_de_858 dw 7
-	dw 6,1
-	  dd de_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_de_437 dw 7
-	dw 6,1
-	  dd de_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_ar_437 dw 7
-	dw 6,1
-	  dd ar_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_ar_850 dw 7
-	dw 6,1
-	  dd ar_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_ar_858 dw 7
-	dw 6,1
-	  dd ar_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_br_850 dw 7
-	dw 6,1
-	  dd br_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd pt_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd pt_yn
-_br_858 dw 7
-	dw 6,1
-	  dd br_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd pt_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd pt_yn
-_br_437 dw 7
-	dw 6,1
-	  dd br_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd pt_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd pt_yn
-_my_437 dw 7
-	dw 6,1
-	  dd my_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_au_437 dw 7
-	dw 6,1
-	  dd au_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_au_850 dw 7
-	dw 6,1
-	  dd au_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_au_858 dw 7
-	dw 6,1
-	  dd au_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_sg_437 dw 7
-	dw 6,1
-	  dd sg_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_jp_437 dw 7
-	dw 6,1
-	  dd jp_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn	; Japanese MS-DOS uses "Y" and "N" - Yuki
-_jp_932 dw 7
-	dw 6,1
-	  dd jp_932
-	dw 6,2
-	  dd ucase_932
-	dw 6,4
-	  dd ucase_932
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd jp_collate_932
-	dw 6,7
-	  dd jp_dbcs_932
-	dw 6,35
-	  dd en_yn
-_kr_437 dw 7
-	dw 6,1
-	  dd kr_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd kr_yn
-_kr_934 dw 7
-	dw 6,1
-	  dd kr_934
-	dw 6,2
-	  dd ucase_934
-	dw 6,4
-	  dd ucase_934
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd kr_collate_934
-	dw 6,7
-	  dd kr_dbcs_934
-	dw 6,35
-	  dd kr_yn
-_cn_437 dw 7
-	dw 6,1
-	  dd cn_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd cn_yn
-_cn_936 dw 7
-	dw 6,1
-	  dd cn_936
-	dw 6,2
-	  dd ucase_936
-	dw 6,4
-	  dd ucase_936
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd cn_collate_936
-	dw 6,7
-	  dd cn_dbcs_936
-	dw 6,35
-	  dd cn_yn_936
-_tr_857 dw 7
-	dw 6,1
-	  dd tr_857
-	dw 6,2
-	  dd ucase_857
-	dw 6,4
-	  dd ucase_857
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd tr_collate_857
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd tr_yn
-_tr_850 dw 7
-	dw 6,1
-	  dd tr_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd tr_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd tr_yn
-_in_437 dw 7
-	dw 6,1
-	  dd in_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd en_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd en_yn
-_pt_860 dw 7
-	dw 6,1
-	  dd pt_860
-	dw 6,2
-	  dd ucase_860
-	dw 6,4
-	  dd ucase_860
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd pt_collate_860
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd pt_yn
-_pt_850 dw 7
-	dw 6,1
-	  dd pt_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd pt_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd pt_yn
-_pt_858 dw 7
-	dw 6,1
-	  dd pt_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd pt_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd pt_yn
-_fi_850 dw 7
-	dw 6,1
-	  dd fi_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fi_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fi_yn
-_fi_858 dw 7
-	dw 6,1
-	  dd fi_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fi_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fi_yn
-_fi_437 dw 7
-	dw 6,1
-	  dd fi_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fi_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fi_yn
-_bg_855 dw 7
-	dw 6,1
-	  dd bg_855
-	dw 6,2
-	  dd ucase_855
-	dw 6,4
-	  dd ucase_855
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd bg_collate_855
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd bg_yn_855
-_bg_872 dw 7
-	dw 6,1
-	  dd bg_872
-	dw 6,2
-	  dd ucase_872
-	dw 6,4
-	  dd ucase_872
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd bg_collate_872
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd bg_yn_872
-_bg_850 dw 7
-	dw 6,1
-	  dd bg_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd bg_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd bg_yn
-_bg_858 dw 7
-	dw 6,1
-	  dd bg_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd bg_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd bg_yn
-_bg_866 dw 8
-	dw 6,1
-	  dd bg_866
-	dw 6,2
-	  dd ucase_866
-	dw 6,3
-	  dd lcase_866
-	dw 6,4
-	  dd ucase_866
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd bg_collate_866
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd bg_yn_866
-_bg_808 dw 8
-	dw 6,1
-	  dd bg_808
-	dw 6,2
-	  dd ucase_808
-	dw 6,3
-	  dd lcase_808
-	dw 6,4
-	  dd ucase_808
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd bg_collate_808
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd bg_yn_808
-_bg_849 dw 8
-	dw 6,1
-	  dd bg_849
-	dw 6,2
-	  dd ucase_849
-	dw 6,3
-	  dd lcase_849
-	dw 6,4
-	  dd ucase_849
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd bg_collate_849
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd bg_yn_849
-_bg_1131 dw 8
-	dw 6,1
-	  dd bg_1131
-	dw 6,2
-	  dd ucase_1131
-	dw 6,3
-	  dd lcase_1131
-	dw 6,4
-	  dd ucase_1131
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd bg_collate_1131
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd bg_yn_1131
-_bg_30033 dw 8
-	dw 6,1
-	  dd bg_30033
-	dw 6,2
-	  dd ucase_30033
-	dw 6,3
-	  dd lcase_30033
-	dw 6,4
-	  dd ucase_30033
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd bg_collate_30033
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd bg_yn_30033
-_by_849 dw 8
-	dw 6,1
-	  dd by_849
-	dw 6,2
-	  dd ucase_849
-	dw 6,3
-	  dd lcase_849
-	dw 6,4
-	  dd ucase_849
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd by_collate_849
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd by_yn_849
-_by_1131 dw 8
-	dw 6,1
-	  dd by_1131
-	dw 6,2
-	  dd ucase_1131
-	dw 6,3
-	  dd lcase_1131
-	dw 6,4
-	  dd ucase_1131
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd by_collate_1131
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd by_yn_1131
-_by_850 dw 7
-	dw 6,1
-	  dd by_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd by_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd by_yn
-_by_858 dw 7
-	dw 6,1
-	  dd by_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd by_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd by_yn
-_ua_848 dw 8
-	dw 6,1
-	  dd ua_848
-	dw 6,2
-	  dd ucase_848
-	dw 6,3
-	  dd lcase_848
-	dw 6,4
-	  dd ucase_848
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ua_collate_848
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ua_yn_848
-_ua_1125 dw 8
-	dw 6,1
-	  dd ua_1125
-	dw 6,2
-	  dd ucase_1125
-	dw 6,3
-	  dd lcase_1125
-	dw 6,4
-	  dd ucase_1125
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ua_collate_1125
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ua_yn_1125
-_rs_852 dw 7
-	dw 6,1
-	  dd rs_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_rs_855 dw 7
-	dw 6,1
-	  dd rs_855
-	dw 6,2
-	  dd ucase_855
-	dw 6,4
-	  dd ucase_855
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_855
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn_855
-_rs_872 dw 7
-	dw 6,1
-	  dd rs_872
-	dw 6,2
-	  dd ucase_872
-	dw 6,4
-	  dd ucase_872
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_872
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn_872
-_rs_850 dw 7
-	dw 6,1
-	  dd rs_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_rs_858 dw 7
-	dw 6,1
-	  dd rs_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_me_852 dw 7
-	dw 6,1
-	  dd me_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd me_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_me_850 dw 7
-	dw 6,1
-	  dd me_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd me_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_me_858 dw 7
-	dw 6,1
-	  dd me_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd me_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_hr_852 dw 7
-	dw 6,1
-	  dd hr_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd hr_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd hr_yn
-_hr_850 dw 7
-	dw 6,1
-	  dd hr_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd hr_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd hr_yn
-_hr_858 dw 7
-	dw 6,1
-	  dd hr_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd hr_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd hr_yn
-_si_852 dw 7
-	dw 6,1
-	  dd si_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd si_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd si_yn
-_si_850 dw 7
-	dw 6,1
-	  dd si_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd si_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd si_yn
-_si_858 dw 7
-	dw 6,1
-	  dd si_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd si_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd si_yn
-_ba_852 dw 7
-	dw 6,1
-	  dd ba_852
-	dw 6,2
-	  dd ucase_852
-	dw 6,4
-	  dd ucase_852
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_852
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_ba_850 dw 7
-	dw 6,1
-	  dd ba_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_ba_858 dw 7
-	dw 6,1
-	  dd ba_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn
-_ba_855 dw 7
-	dw 6,1
-	  dd ba_855
-	dw 6,2
-	  dd ucase_855
-	dw 6,4
-	  dd ucase_855
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_855
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn_855
-_ba_872 dw 7
-	dw 6,1
-	  dd ba_872
-	dw 6,2
-	  dd ucase_872
-	dw 6,4
-	  dd ucase_872
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd sh_collate_872
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd sh_yn_872
-_mk_855 dw 7
-	dw 6,1
-	  dd mk_855
-	dw 6,2
-	  dd ucase_855
-	dw 6,4
-	  dd ucase_855
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd mk_collate_855
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd mk_yn_855
-_mk_872 dw 7
-	dw 6,1
-	  dd mk_872
-	dw 6,2
-	  dd ucase_872
-	dw 6,4
-	  dd ucase_872
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd mk_collate_872
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd mk_yn_872
-_mk_850 dw 7
-	dw 6,1
-	  dd mk_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd mk_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd mk_yn
-_mk_858 dw 7
-	dw 6,1
-	  dd mk_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd mk_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd mk_yn
-_xx_850	dw 7
-	dw 6,1
-	  dd xx_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd xx_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd xx_yn
-_xx_858	dw 7
-	dw 6,1
-	  dd xx_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd xx_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd xx_yn
-_xx_864	dw 7
-	dw 6,1
-	  dd xx_864
-	dw 6,2
-	  dd ucase_864
-	dw 6,4
-	  dd ucase_864
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd xx_collate_864
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd xx_yn_864
-_il_850	dw 7
-	dw 6,1
-	  dd il_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd il_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd il_yn
-_il_858	dw 7
-	dw 6,1
-	  dd il_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd il_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd il_yn
-_il_862	dw 7
-	dw 6,1
-	  dd il_862
-	dw 6,2
-	  dd ucase_862
-	dw 6,4
-	  dd ucase_862
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd il_collate_862
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd il_yn_862
-_nl_BE_850 dw 7
-	dw 6,1
-	  dd nl_BE_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd nl_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd nl_yn
-_nl_BE_858 dw 7
-	dw 6,1
-	  dd nl_BE_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd nl_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd nl_yn
-_nl_BE_437 dw 7
-	dw 6,1
-	  dd nl_BE_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd nl_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd nl_yn
-_fr_BE_850 dw 7
-	dw 6,1
-	  dd fr_BE_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_fr_BE_858 dw 7
-	dw 6,1
-	  dd fr_BE_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_fr_BE_437 dw 7
-	dw 6,1
-	  dd fr_BE_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_de_BE_850 dw 7
-	dw 6,1
-	  dd de_BE_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_de_BE_858 dw 7
-	dw 6,1
-	  dd de_BE_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_de_BE_437 dw 7
-	dw 6,1
-	  dd de_BE_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_es_ES_850 dw 7
-	dw 6,1
-	  dd es_ES_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_es_ES_858 dw 7
-	dw 6,1
-	  dd es_ES_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_es_ES_437 dw 7
-	dw 6,1
-	  dd es_ES_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd es_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd es_yn
-_ca_ES_850 dw 7
-	dw 6,1
-	  dd ca_ES_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ca_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ca_yn
-_ca_ES_858 dw 7
-	dw 6,1
-	  dd ca_ES_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ca_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ca_yn
-_ca_ES_437 dw 7
-	dw 6,1
-	  dd ca_ES_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ca_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ca_yn
-_gl_ES_850 dw 7
-	dw 6,1
-	  dd gl_ES_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd gl_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd gl_yn
-_gl_ES_858 dw 7
-	dw 6,1
-	  dd gl_ES_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd gl_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd gl_yn
-_gl_ES_437 dw 7
-	dw 6,1
-	  dd gl_ES_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd gl_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd gl_yn
-_eu_ES_850 dw 7
-	dw 6,1
-	  dd eu_ES_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd eu_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd eu_yn
-_eu_ES_858 dw 7
-	dw 6,1
-	  dd eu_ES_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd eu_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd eu_yn
-_eu_ES_437 dw 7
-	dw 6,1
-	  dd eu_ES_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd eu_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd eu_yn
-_de_CH_850 dw 7
-	dw 6,1
-	  dd de_CH_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_de_CH_858 dw 7
-	dw 6,1
-	  dd de_CH_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_de_CH_437 dw 7
-	dw 6,1
-	  dd de_CH_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd de_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd de_yn
-_fr_CH_850 dw 7
-	dw 6,1
-	  dd fr_CH_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_fr_CH_858 dw 7
-	dw 6,1
-	  dd fr_CH_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_fr_CH_437 dw 7
-	dw 6,1
-	  dd fr_CH_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd fr_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd fr_yn
-_it_CH_850 dw 7
-	dw 6,1
-	  dd it_CH_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd it_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd it_yn
-_it_CH_858 dw 7
-	dw 6,1
-	  dd it_CH_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd it_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd it_yn
-_it_CH_437 dw 7
-	dw 6,1
-	  dd it_CH_437
-	dw 6,2
-	  dd ucase_437
-	dw 6,4
-	  dd ucase_437
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd it_collate_437
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd it_yn
-_is_861 dw 7
-	dw 6,1
-	  dd is_861
-	dw 6,2
-	  dd ucase_861
-	dw 6,4
-	  dd ucase_861
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd is_collate_861
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd is_yn
-_is_850 dw 7
-	dw 6,1
-	  dd is_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd is_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd is_yn
-_is_858 dw 7
-	dw 6,1
-	  dd is_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd is_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd is_yn
-_ee_775 dw 7
-	dw 6,1
-	  dd ee_775
-	dw 6,2
-	  dd ucase_775
-	dw 6,4
-	  dd ucase_775
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ee_collate_775
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ee_yn
-_ee_850 dw 7
-	dw 6,1
-	  dd ee_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ee_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ee_yn
-_ee_858 dw 7
-	dw 6,1
-	  dd ee_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd ee_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd ee_yn
-_lv_775 dw 7
-	dw 6,1
-	  dd lv_775
-	dw 6,2
-	  dd ucase_775
-	dw 6,4
-	  dd ucase_775
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd lv_collate_775
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd lv_yn
-_lv_850 dw 7
-	dw 6,1
-	  dd lv_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd lv_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd lv_yn
-_lv_858 dw 7
-	dw 6,1
-	  dd lv_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd lv_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd lv_yn
-_lt_775 dw 7
-	dw 6,1
-	  dd lt_775
-	dw 6,2
-	  dd ucase_775
-	dw 6,4
-	  dd ucase_775
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd lt_collate_775
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd lt_yn
-_lt_850 dw 7
-	dw 6,1
-	  dd lt_850
-	dw 6,2
-	  dd ucase_850
-	dw 6,4
-	  dd ucase_850
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd lt_collate_850
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd lt_yn
-_lt_858 dw 7
-	dw 6,1
-	  dd lt_858
-	dw 6,2
-	  dd ucase_858
-	dw 6,4
-	  dd ucase_858
-	dw 6,5
-	  dd fchar
-	dw 6,6
-	  dd lt_collate_858
-	dw 6,7
-	  dd dbcs_empty
-	dw 6,35
-	  dd lt_yn
+; ------------------------------------------------------------------------------
+; United States - Country Code 1
+; ------------------------------------------------------------------------------
+COUNTRY 1, 437, en_collate_437, yn_yn, MDY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12 ; Currency: $ - US Dollar,, Yes / No
+COUNTRY 1, 850, en_collate_850, yn_yn, MDY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12
+COUNTRY 1, 858, en_collate_858, yn_yn, MDY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12
 
-%define MDY 0 ; month/day/year
-%define DMY 1 ; day/month/year
-%define YMD 2 ; year/month/day
+; ------------------------------------------------------------------------------
+; Canada (French) - Country Code 2
+; ------------------------------------------------------------------------------
+COUNTRY 2, 850, fr_collate_850, yn_on, YMD, "$", 0, 0, 0, 0, " ", ",", "-", ":", 3, 2, _24 ; Oui / Non
+COUNTRY 2, 858, fr_collate_858, yn_on, YMD, "$", 0, 0, 0, 0, " ", ",", "-", ":", 3, 2, _24
+COUNTRY 2, 863, fr_collate_863, yn_on, YMD, "$", 0, 0, 0, 0, " ", ",", "-", ":", 3, 2, _24
 
-%define _12 0 ; time as AM/PM
-%define _24 1 ; 24-hour format
+; ------------------------------------------------------------------------------
+; Latin America - Country Code 3
+; ------------------------------------------------------------------------------
+COUNTRY 3, 437, es_collate_437, yn_sn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12 ; Si / No
+COUNTRY 3, 850, es_collate_850, yn_sn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12
+COUNTRY 3, 858, es_collate_858, yn_sn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12
 
-; Country ID  : international numbering
-; Codepage    : codepage to use by default
-; Date format : M = Month, D = Day, Y = Year (4digit); 0=USA, 1=Europe, 2=Japan
-; Currency    : $ = dollar, EUR = EURO (ALT-128), UK uses the pound sign
-; Thousands   : separator for 1000s (1,000,000 bytes; Dutch: 1.000.000 bytes)
-; Decimals    : separator for decimals (2.5 KB; Dutch: 2,5 KB)
-; Datesep     : Date separator (2/4/2004 or 2-4-2004 for example)
-; Timesep     : usually ":" is used to separate hours, minutes and seconds
-; Currencyf   : Currency format (bit array)
-;		bit 2 = set if currency symbol replaces decimal point
-;		bit 1 = number of spaces between value and currency symbol
-;		bit 0 = 0 if currency symbol precedes value
-;			1 if currency symbol follows value
-; Currencyp   : Currency precision
-; Time format : 0=12 hour format (AM/PM), 1=24 hour format (4:12 PM is 16:12)
+; ------------------------------------------------------------------------------
+; Russia - Country Code 7
+; ------------------------------------------------------------------------------
+COUNTRY       7, 437, ru_collate_437, yn_dn,                  DMY, "R", "U", "B", 0, 0, " ", ",", ".", ":", 3, 2, _24 ; Da / Net
+COUNTRY_LCASE 7, 808, ru_collate_808, yn_cyrl_866, lcase_808, DMY, 0E0h, ".",  0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY       7, 850, ru_collate_850, yn_dn,                  DMY, "R", "U", "B", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY       7, 852, ru_collate_852, yn_dn,                  DMY, "R", "U", "B", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY       7, 855, ru_collate_855, yn_cyrl_855,            DMY, 0E1h, ".",  0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY       7, 858, ru_collate_858, yn_dn,                  DMY, "R", "U", "B", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY_LCASE 7, 866, ru_collate_866, yn_cyrl_866, lcase_866, DMY, 0E0h, ".",  0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY       7, 872, ru_collate_872, yn_cyrl_872,            DMY, 0E1h, ".",  0, 0, 0, " ", ",", ".", ":", 3, 2, _24
 
-%macro cnf 15
-   db 0FFh,"CTYINFO"
-   dw 22; length
-dw	     %1,%2,%3					     ; ID,CP,DF
-		     db %4,%5,%6,%7,%8			     ; currency
-				    dw %9,%10,%11,%12	     ; 1000, 0.1, DS,TS
-						 db %13,%14,%15 ; CF,Pr,TF
-%endmacro;    |	 |  |	  |		|   |	|  |  |	 |   |
-;	     ID CP DF  currency	      1000 0.1	DS TS CF Pr TF Country Contrib
-;-----------------------------------------------------------------------------
-us_437 cnf   1,437,MDY,"$",    0,0,0,0,",",".","-",":",0,2,_12; United States
-us_850 cnf   1,850,MDY,"$",    0,0,0,0,",",".","-",":",0,2,_12; United States
-us_858 cnf   1,858,MDY,"$",    0,0,0,0,",",".","-",":",0,2,_12; United States
-ca_863 cnf   2,863,YMD,"$",    0,0,0,0," ",",","-",":",3,2,_24; Canada-French
-ca_850 cnf   2,850,YMD,"$",    0,0,0,0," ",",","-",":",3,2,_24; Canada-French
-ca_858 cnf   2,858,YMD,"$",    0,0,0,0," ",",","-",":",3,2,_24; Canada-French
-la_850 cnf   3,850,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_12; Latin America
-la_858 cnf   3,858,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_12; Latin America
-la_437 cnf   3,437,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_12; Latin America
-ru_866 cnf   7,866,DMY,0E0h,".", 0,0,0," ",",",".",":",3,2,_24; Russia	 Arkady
-ru_808 cnf   7,808,DMY,0E0h,".", 0,0,0," ",",",".",":",3,2,_24; Russia
-ru_855 cnf   7,855,DMY,0E1h,".", 0,0,0," ",",",".",":",3,2,_24; Russia
-ru_872 cnf   7,872,DMY,0E1h,".", 0,0,0," ",",",".",":",3,2,_24; Russia
-ru_852 cnf   7,852,DMY,"R","U","B",0,0," ",",",".",":",3,2,_24; Russia
-ru_850 cnf   7,850,DMY,"R","U","B",0,0," ",",",".",":",3,2,_24; Russia
-ru_858 cnf   7,858,DMY,"R","U","B",0,0," ",",",".",":",3,2,_24; Russia
-ru_437 cnf   7,437,DMY,"R","U","B",0,0," ",",",".",":",3,2,_24; Russia
-gr_869 cnf  30,869,DMY,0A8h,0D1h,0C7h,0,0,".",",","/",":",1,2,_12; Greece
-gr_737 cnf  30,737,DMY,84h,93h,90h,0,0,".",",","/",":",1,2,_12; Greece
-gr_850 cnf  30,850,DMY,"E","Y","P",0,0,".",",","/",":",1,2,_12; Greece
-gr_858 cnf  30,858,DMY,0D5h,   0,0,0,0,".",",","/",":",1,2,_12; Greece
-nl_850 cnf  31,850,DMY,"E","U","R",0,0,".",",","-",":",0,2,_24; Netherlands Bart
-nl_858 cnf  31,858,DMY,0D5h,   0,0,0,0,".",",","-",":",0,2,_24; Netherlands
-nl_437 cnf  31,437,DMY,"E","U","R",0,0,".",",","-",":",0,2,_24; Netherlands
-be_850 cnf  32,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Belgium
-be_858 cnf  32,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24; Belgium
-be_437 cnf  32,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Belgium
-fr_850 cnf  33,850,DMY,"E","U","R",0,0," ",",",".",":",0,2,_24; France
-fr_858 cnf  33,858,DMY,0D5h,   0,0,0,0," ",",",".",":",0,2,_24; France
-fr_437 cnf  33,437,DMY,"E","U","R",0,0," ",",",".",":",0,2,_24; France
-es_850 cnf  34,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Spain	  Aitor
-es_858 cnf  34,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24; Spain
-es_437 cnf  34,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Spain
-hu_852 cnf  36,852,YMD,"F","t",	 0,0,0," ",",",".",":",3,2,_24; Hungary
-hu_850 cnf  36,850,YMD,"F","t",	 0,0,0," ",",",".",":",3,2,_24; Hungary
-hu_858 cnf  36,858,YMD,"F","t",	 0,0,0," ",",",".",":",3,2,_24; Hungary
-it_850 cnf  39,850,DMY,"E","U","R",0,0,".",",","/",".",0,2,_24; Italy
-it_858 cnf  39,858,DMY,0D5h,   0,0,0,0,".",",","/",".",0,2,_24; Italy
-it_437 cnf  39,437,DMY,"E","U","R",0,0,".",",","/",".",0,2,_24; Italy
-ro_852 cnf  40,852,YMD,"L","e","i",0,0,".",",","-",":",0,2,_24; Romania
-ro_850 cnf  40,850,YMD,"L","e","i",0,0,".",",","-",":",0,2,_24; Romania
-ro_858 cnf  40,858,YMD,"L","e","i",0,0,".",",","-",":",0,2,_24; Romania
-ch_850 cnf  41,850,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24; Switzerland
-ch_858 cnf  41,858,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24; Switzerland
-ch_437 cnf  41,437,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24; Switzerland
-at_850 cnf  43,850,DMY,"E","U","R",0,0,".",",",".",".",0,2,_24; Austria
-at_858 cnf  43,858,DMY,0D5h,   0,0,0,0,".",",",".",".",0,2,_24; Austria
-at_437 cnf  43,437,DMY,"E","U","R",0,0,".",",",".",".",0,2,_24; Austria
-gb_850 cnf  44,850,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
-gb_858 cnf  44,858,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
-gb_437 cnf  44,437,DMY,9Ch,    0,0,0,0,",",".","/",":",0,2,_24; United Kingdom
-dk_865 cnf  45,865,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
-dk_850 cnf  45,850,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
-dk_858 cnf  45,858,DMY,"k","r",	 0,0,0,".",",","-",".",2,2,_24; Denmark
-se_850 cnf  46,850,YMD,"K","r",	 0,0,0," ",",","-",".",3,2,_24; Sweden
-se_858 cnf  46,858,YMD,"K","r",	 0,0,0," ",",","-",".",3,2,_24; Sweden
-se_437 cnf  46,437,YMD,"K","r",	 0,0,0," ",",","-",".",3,2,_24; Sweden
-no_865 cnf  47,865,DMY,"K","r",	 0,0,0,".",",",".",":",2,2,_24; Norway
-no_850 cnf  47,850,DMY,"K","r",	 0,0,0,".",",",".",":",2,2,_24; Norway
-no_858 cnf  47,858,DMY,"K","r",	 0,0,0,".",",",".",":",2,2,_24; Norway
-pl_852 cnf  48,852,YMD,"Z",88h,	 0,0,0,".",",","-",":",0,2,_24; Poland	 Michal
-pl_850 cnf  48,850,YMD,"P","L","N",0,0,".",",","-",":",0,2,_24; Poland
-pl_858 cnf  48,858,YMD,"P","L","N",0,0,".",",","-",":",0,2,_24; Poland
-de_850 cnf  49,850,DMY,"E","U","R",0,0,".",",",".",":",3,2,_24; Germany	    Tom
-de_858 cnf  49,858,DMY,0D5h,   0,0,0,0,".",",",".",":",3,2,_24; Germany
-de_437 cnf  49,437,DMY,"E","U","R",0,0,".",",",".",":",3,2,_24; Germany
-ar_850 cnf  54,850,DMY,"$",    0,0,0,0,".",",","/",".",0,2,_24; Argentina
-ar_858 cnf  54,858,DMY,"$",    0,0,0,0,".",",","/",".",0,2,_24; Argentina
-ar_437 cnf  54,437,DMY,"$",    0,0,0,0,".",",","/",".",0,2,_24; Argentina
-br_850 cnf  55,850,DMY,"C","r","$",0,0,".",",","/",":",2,2,_24; Brazil
-br_858 cnf  55,858,DMY,"C","r","$",0,0,".",",","/",":",2,2,_24; Brazil
-br_437 cnf  55,437,DMY,"C","r","$",0,0,".",",","/",":",2,2,_24; Brazil
-my_437 cnf  60,437,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_12; Malaysia
-au_437 cnf  61,437,DMY,"$",    0,0,0,0,",",".","-",":",0,2,_12; Australia
-au_850 cnf  61,850,DMY,"$",    0,0,0,0,",",".","-",":",0,2,_12; Australia
-au_858 cnf  61,858,DMY,"$",    0,0,0,0,",",".","-",":",0,2,_12; Australia
-sg_437 cnf  65,437,DMY,"$",    0,0,0,0,",",".","/",":",0,2,_12; Singapore
-jp_932 cnf  81,932,YMD,5Ch,    0,0,0,0,",",".","-",":",0,0,_24; Japan	   Yuki
-jp_437 cnf  81,437,YMD,9Dh,    0,0,0,0,",",".","-",":",0,0,_24; Japan
-kr_934 cnf  82,934,YMD,5Ch,    0,0,0,0,",",".",".",":",0,0,_24; Korea
-kr_437 cnf  82,437,YMD,"K","R","W",0,0,",",".",".",":",0,0,_24; Korea
-cn_936 cnf  86,936,YMD,5Ch,    0,0,0,0,",",".",".",":",0,2,_12; China
-cn_437 cnf  86,437,YMD,9Dh,    0,0,0,0,",",".",".",":",0,2,_12; China
-tr_857 cnf  90,857,DMY,"T","L",	 0,0,0,".",",","/",":",4,2,_24; Turkey
-tr_850 cnf  90,850,DMY,"T","L",	 0,0,0,".",",","/",":",4,2,_24; Turkey
-in_437 cnf  91,437,DMY,"R","s",	 0,0,0,".",",","/",":",0,2,_24; India
-pt_860 cnf 351,860,DMY,"E","U","R",0,0,".",",","-",":",0,2,_24; Portugal
-pt_850 cnf 351,850,DMY,"E","U","R",0,0,".",",","-",":",0,2,_24; Portugal
-pt_858 cnf 351,858,DMY,0D5h,   0,0,0,0,".",",","-",":",0,2,_24; Portugal
-is_861 cnf 354,861,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
-is_850 cnf 354,850,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
-is_858 cnf 354,858,DMY,"kr",   0,0,0,0,".",",",".",":",3,0,_24; Iceland
-fi_850 cnf 358,850,DMY,"E","U","R",0,0," ",",",".",".",3,2,_24; Finland	   Wolf
-fi_858 cnf 358,858,DMY,0D5h,   0,0,0,0," ",",",".",".",3,2,_24; Finland
-fi_437 cnf 358,437,DMY,"E","U","R",0,0," ",",",".",".",3,2,_24;
-bg_855 cnf 359,855,DMY,0D0h,0EBh,".",0,0," ",",",".",",",3,2,_24; Bulgaria  Lucho&RDPK7
-bg_872 cnf 359,872,DMY,0D0h,0EBh,".",0,0," ",",",".",",",3,2,_24; Bulgaria  Lucho&RDPK7
-bg_850 cnf 359,850,DMY,"B","G","N",0,0," ",",",".",",",3,2,_24; Bulgaria  RDPK7
-bg_858 cnf 359,858,DMY,"B","G","N",0,0," ",",",".",",",3,2,_24; Bulgaria  RDPK7
-bg_866 cnf 359,866,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria
-bg_808 cnf 359,808,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria
-bg_849 cnf 359,849,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria
-bg_1131 cnf 359,1131,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria
-bg_30033 cnf 359,30033,DMY,0ABh,0A2h,".",0,0," ",",",".",",",3,2,_24; Bulgaria  RDPK7
-ee_775 cnf 372,775,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24; Estonia
-ee_850 cnf 372,850,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
-ee_858 cnf 372,858,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
-lv_775 cnf 371,775,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24; Latvia
-lv_850 cnf 371,850,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
-lv_858 cnf 371,858,DMY,"E","U","R",0,0," ",",",".",":",3,2,_24;
-lt_775 cnf 370,775,YMD,"E","U","R",0,0," ",",","-",":",3,2,_24; Lithuania
-lt_850 cnf 370,850,YMD,"E","U","R",0,0," ",",","-",":",3,2,_24;
-lt_858 cnf 370,858,YMD,"E","U","R",0,0," ",",","-",":",3,2,_24;
-by_849 cnf 375,849,DMY,0E0h,0E3h,0A1h,".",0," ",",",".",":",3,2,_24;Belarus
-by_1131 cnf 375,1131,DMY,0E0h,0E3h,0A1h,".",0," ",",",".",":",3,2,_24; Belarus
-by_850 cnf 375,850,DMY,"B","Y","R",0,0," ",",",".",",",3,2,_24; Belarus
-by_858 cnf 375,858,DMY,"B","Y","R",0,0," ",",",".",",",3,2,_24; Belarus
-ua_848 cnf 380,848,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24;Ukraine Oleg
-ua_1125 cnf 380,1125,DMY,0A3h,0E0h,0ADh,".",0," ",",",".",":",3,2,_24; Ukraine
-rs_855 cnf 381,855,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
-rs_872 cnf 381,872,DMY,0A7h,0B7h,0D4h,0,0,".",",",".",":",3,2,_24; Serbia
-rs_852 cnf 381,852,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
-rs_850 cnf 381,850,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
-rs_858 cnf 381,858,DMY,"D","i","n",0,0,".",",",".",":",3,2,_24; Serbia
-me_852 cnf 382,852,DMY,"E","U","R",0,0,".",",",".",":",3,2,_24; Montenegro
-me_850 cnf 382,850,DMY,"E","U","R",0,0,".",",",".",":",3,2,_24; Montenegro
-me_858 cnf 382,858,DMY,0D5h,0,  0, 0,0,".",",",".",":",3,2,_24; Montenegro
-xk_852 cnf 383,852,YMD,"E","U","R",0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
-xk_855 cnf 383,855,YMD,"E","U","R",0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
-xk_872 cnf 383,872,YMD,"E","U","R",0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
-xk_850 cnf 383,850,YMD,"E","U","R",0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
-xk_858 cnf 383,858,YMD,0D5h,0,  0, 0,0,".",",","-",":",2,2,_24; Kosovo (Temporary code)
-hr_852 cnf 385,852,DMY,"E","U","R",0,0,".",",",".",".",3,2,_24; Croatia
-hr_850 cnf 385,850,DMY,"E","U","R",0,0,".",",",".",".",3,2,_24; Croatia
-hr_858 cnf 385,858,DMY,0D5h,0,  0, 0,0,".",",",".",".",3,2,_24; Croatia
-si_852 cnf 386,852,DMY,"S","I","T",0,0,".",",",".",":",3,2,_24; Slovenia
-si_850 cnf 386,850,DMY,"S","I","T",0,0,".",",",".",":",3,2,_24; Slovenia
-si_858 cnf 386,858,DMY,"S","I","T",0,0,".",",",".",":",3,2,_24; Slovenia
-ba_852 cnf 387,852,DMY,"K","M",  0,0,0,".",",",".",".",1,2,_24; Bosnia
-ba_850 cnf 387,850,DMY,"K","M",  0,0,0,".",",",".",".",1,2,_24; Bosnia
-ba_858 cnf 387,858,DMY,"K","M",  0,0,0,".",",",".",".",1,2,_24; Bosnia
-ba_855 cnf 387,855,DMY,"K","M",  0,0,0,".",",",".",":",1,2,_24; Bosnia
-ba_872 cnf 387,872,DMY,"K","M",  0,0,0,".",",",".",":",1,2,_24; Bosnia
-mk_855 cnf 389,855,DMY,0A7h,0A8h,0D4h,0,0,".",",",".",":",3,2,_24; Macedonia
-mk_872 cnf 389,872,DMY,0A7h,0A8h,0D4h,0,0,".",",",".",":",3,2,_24; Macedonia
-mk_850 cnf 389,850,DMY,"D","e","n",0,0,".",",",".",":",3,2,_24; Macedonia
-mk_858 cnf 389,858,DMY,"D","e","n",0,0,".",",",".",":",3,2,_24; Macedonia
-cz_852 cnf 420,852,DMY,"K","C","s",0,0,".",",","-",":",2,2,_24; Czech Republic
-cz_850 cnf 420,850,DMY,"K","C","s",0,0,".",",","-",":",2,2,_24; Czech Republic
-cz_858 cnf 420,858,DMY,"K","C","s",0,0,".",",","-",":",2,2,_24; Czech Republic
-sk_852 cnf 421,852,DMY,"E","U","R",0,0,".",",","-",":",2,2,_24; Slovakia
-sk_850 cnf 421,850,DMY,"E","U","R",0,0,".",",","-",":",2,2,_24; Slovakia
-sk_858 cnf 421,858,DMY,0D5h,0,  0, 0,0,".",",","-",":",2,2,_24; Slovakia
-xx_864 cnf 785,864,DMY,0A4h,   0,0,0,0,".",",","/",":",1,3,_12; Middle East
-xx_850 cnf 785,850,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
-xx_858 cnf 785,858,DMY,0CFh,   0,0,0,0,".",",","/",":",3,3,_12; Middle East
-il_862 cnf 972,862,DMY,99h,    0,0,0,0,",","."," ",":",2,2,_24; Israel
-il_850 cnf 972,850,DMY,"N","I","S",0,0,",","."," ",":",2,2,_24; Israel
-il_858 cnf 972,858,DMY,"N","I","S",0,0,",","."," ",":",2,2,_24; Israel
-es_ES_850 cnf 40034,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Spain:
-es_ES_858 cnf 40034,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24;  Spanish
-es_ES_437 cnf 40034,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-ca_ES_850 cnf 41034,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24;  Catalan
-ca_ES_858 cnf 41034,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24
-ca_ES_437 cnf 41034,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-gl_ES_850 cnf 42034,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24;  Galician
-gl_ES_858 cnf 42034,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24
-gl_ES_437 cnf 42034,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-eu_ES_850 cnf 43034,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24;  Basque
-eu_ES_858 cnf 43034,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24
-eu_ES_437 cnf 43034,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-nl_BE_850 cnf 40032,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24; Belgium:
-nl_BE_858 cnf 40032,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24;  Dutch
-nl_BE_437 cnf 40032,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-fr_BE_850 cnf 41032,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24;  French
-fr_BE_858 cnf 41032,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24
-fr_BE_437 cnf 41032,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-de_BE_850 cnf 42032,850,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24;  German
-de_BE_858 cnf 42032,858,DMY,0D5h,   0,0,0,0,".",",","/",":",0,2,_24
-de_BE_437 cnf 42032,437,DMY,"E","U","R",0,0,".",",","/",":",0,2,_24
-de_CH_850 cnf 40041,850,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24; Switzerland
-de_CH_858 cnf 40041,858,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24;  German
-de_CH_437 cnf 40041,437,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24
-fr_CH_850 cnf 41041,850,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24;  French
-fr_CH_858 cnf 41041,858,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24
-fr_CH_437 cnf 41041,437,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24
-it_CH_850 cnf 42041,850,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24;  Italian
-it_CH_858 cnf 42041,858,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24
-it_CH_437 cnf 42041,437,DMY,"F","r",".",0,0,"'",".",".",",",2,2,_24
+; ------------------------------------------------------------------------------
+; South Africa - Country Code 27
+; ------------------------------------------------------------------------------
+COUNTRY 27, 437, en_collate_437, yn_yn, YMD, "R", 0, 0, 0, 0, " ", ",", "/", ":", 0, 2, _24 ; Yes / No
+COUNTRY 27, 850, en_collate_850, yn_yn, YMD, "R", 0, 0, 0, 0, " ", ",", "/", ":", 0, 2, _24
+COUNTRY 27, 858, en_collate_858, yn_yn, YMD, "R", 0, 0, 0, 0, " ", ",", "/", ":", 0, 2, _24
 
+; ------------------------------------------------------------------------------
+; Greece - Country Code 30
+; ------------------------------------------------------------------------------
+COUNTRY 30, 737, gr_collate_737, yn_gr_737, DMY, 84h, 93h, 90h,    0, 0, ".", ",", "/", ":", 1, 2, _12 ; Nai / Oxi
+COUNTRY 30, 850, gr_collate_850, yn_no,     DMY, "E", "Y", "P",    0, 0, ".", ",", "/", ":", 1, 2, _12
+COUNTRY 30, 858, gr_collate_858, yn_no,     DMY, 0D5h,       0, 0, 0, 0, ".", ",", "/", ":", 1, 2, _12
+COUNTRY 30, 869, gr_collate_869, yn_gr_869, DMY, 0A8h, 0D1h, 0C7h, 0, 0, ".", ",", "/", ":", 1, 2, _12
+
+; ------------------------------------------------------------------------------
+; Netherlands - Country Code 31
+; ------------------------------------------------------------------------------
+COUNTRY 31, 437, nl_collate_437, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", "-", ":", 0, 2, _24 ; Ja / Nee
+COUNTRY 31, 850, nl_collate_850, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 31, 858, nl_collate_858, yn_jn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "-", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Belgium - Country Code 32
+; ------------------------------------------------------------------------------
+COUNTRY 32,    437, be_collate_437, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Ja / Nee
+COUNTRY 32,    850, be_collate_850, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ;
+COUNTRY 32,    858, be_collate_858, yn_jn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24 ;
+
+COUNTRY_ML 32, 0, 437, nl_collate_437, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Dutch, Ja / Nee
+COUNTRY_ML 32, 0, 850, nl_collate_850, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 32, 0, 858, nl_collate_858, yn_jn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 32, 1, 437, fr_collate_437, yn_on, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; French, Oui / Non
+COUNTRY_ML 32, 1, 850, fr_collate_850, yn_on, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 32, 1, 858, fr_collate_858, yn_on, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 32, 2, 437, de_collate_437, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; German, Ja / Nein
+COUNTRY_ML 32, 2, 850, de_collate_850, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 32, 2, 858, de_collate_858, yn_jn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; France - Country Code 33
+; ------------------------------------------------------------------------------
+COUNTRY 33, 437, fr_collate_437, yn_on, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 0, 2, _24 ; Oui / Non
+COUNTRY 33, 850, fr_collate_850, yn_on, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 0, 2, _24
+COUNTRY 33, 858, fr_collate_858, yn_on, DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Spain - Country Code 34
+; ------------------------------------------------------------------------------
+COUNTRY 34,    437, es_collate_437, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Si / No
+COUNTRY 34,    850, es_collate_850, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY 34,    858, es_collate_858, yn_sn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+
+COUNTRY_ML 34, 0, 437, es_collate_437, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Spanish, Si / No
+COUNTRY_ML 34, 0, 850, es_collate_850, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 0, 858, es_collate_858, yn_sn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 1, 437, ca_collate_437, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Catalan, Si / No
+COUNTRY_ML 34, 1, 850, ca_collate_850, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 1, 858, ca_collate_858, yn_sn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 2, 437, gl_collate_437, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Galician, Si / Non
+COUNTRY_ML 34, 2, 850, gl_collate_850, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 2, 858, gl_collate_858, yn_sn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 3, 437, eu_collate_437, yn_be, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Basque, Bai / Ez
+COUNTRY_ML 34, 3, 850, eu_collate_850, yn_be, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY_ML 34, 3, 858, eu_collate_858, yn_be, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Hungary - Country Code 36
+; ------------------------------------------------------------------------------
+COUNTRY 36, 850, hu_collate_850, yn_in, YMD, "F", "t", 0, 0, 0, " ", ",", ".", ":", 3, 2, _24 ; Igen / Nem
+COUNTRY 36, 852, hu_collate_852, yn_in, YMD, "F", "t", 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 36, 858, hu_collate_858, yn_in, YMD, "F", "t", 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Yugoslavia - Country Code 38
+; [OBSOLETE]
+; ------------------------------------------------------------------------------
+OLD_COUNTRY 38, 850, sh_collate_850, yn_dn,       YMD, "D", "i", "n",    0, 0, ".", ",", "-", ":", 2, 2, _24 ; Da / Ne
+OLD_COUNTRY 38, 852, sh_collate_852, yn_dn,       YMD, "D", "i", "n",    0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 38, 855, sh_collate_855, yn_cyrl_855, YMD, 0A7h, 0B7h, 0D4h, 0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 38, 858, sh_collate_858, yn_dn,       YMD, "D", "i", "n",    0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 38, 872, sh_collate_872, yn_cyrl_872, YMD, 0A7h, 0B7h, 0D4h, 0, 0, ".", ",", "-", ":", 2, 2, _24
+
+; ------------------------------------------------------------------------------
+; Italy - Country Code 39
+; ------------------------------------------------------------------------------
+COUNTRY 39, 437, it_collate_437, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ".", 0, 2, _24 ; Si / No
+COUNTRY 39, 850, it_collate_850, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ".", 0, 2, _24
+COUNTRY 39, 858, it_collate_858, yn_sn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ".", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Romania - Country Code 40
+; ------------------------------------------------------------------------------
+COUNTRY 40, 850, ro_collate_850, yn_dn, YMD, "L", "e", "i", 0, 0, ".", ",", "-", ":", 0, 2, _24 ; Da / Nu
+COUNTRY 40, 852, ro_collate_852, yn_dn, YMD, "L", "e", "i", 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 40, 858, ro_collate_858, yn_dn, YMD, "L", "e", "i", 0, 0, ".", ",", "-", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Switzerland - Country Code 41
+; ------------------------------------------------------------------------------
+COUNTRY 41,    437, ch_collate_437, yn_jn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24 ; Ja / Nein
+COUNTRY 41,    850, ch_collate_850, yn_jn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY 41,    858, ch_collate_858, yn_jn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+
+COUNTRY_ML 41, 0, 437, de_collate_437, yn_jn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24 ; German, Ja / Nein
+COUNTRY_ML 41, 0, 850, de_collate_850, yn_jn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY_ML 41, 0, 858, de_collate_858, yn_jn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY_ML 41, 1, 437, fr_collate_437, yn_on, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24 ; French, Oui / Non
+COUNTRY_ML 41, 1, 850, fr_collate_850, yn_on, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY_ML 41, 1, 858, fr_collate_858, yn_on, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY_ML 41, 2, 437, it_collate_437, yn_sn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24 ; Italian, Si / No
+COUNTRY_ML 41, 2, 850, it_collate_850, yn_sn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+COUNTRY_ML 41, 2, 858, it_collate_858, yn_sn, DMY, "F", "r", ".", 0, 0, "'", ".", ".", ",", 2, 2, _24
+
+; ------------------------------------------------------------------------------
+; Czechoslovakia - Country Code 42
+; [OBSOLETE, see Czech Republic 420 and Slovakia 421]
+; ------------------------------------------------------------------------------
+OLD_COUNTRY 42, 850, cz_collate_850, yn_an, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24 ; Ano / Ne
+OLD_COUNTRY 42, 852, cz_collate_852, yn_an, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 42, 858, cz_collate_858, yn_an, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
+
+; ------------------------------------------------------------------------------
+; Austria - Country Code 43
+; ------------------------------------------------------------------------------
+COUNTRY 43, 437, de_collate_437, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ".", 0, 2, _24 ; Ja / Nein
+COUNTRY 43, 850, de_collate_850, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ".", 0, 2, _24
+COUNTRY 43, 858, de_collate_858, yn_jn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ".", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; United Kingdom - Country Code 44
+; ------------------------------------------------------------------------------
+COUNTRY 44, 437, en_collate_437, yn_yn, DMY, 9Ch, 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24 ; Yes / No
+COUNTRY 44, 850, en_collate_850, yn_yn, DMY, 9Ch, 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 44, 858, en_collate_858, yn_yn, DMY, 9Ch, 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Denmark - Country Code 45
+; ------------------------------------------------------------------------------
+COUNTRY 45, 850, dk_collate_850, yn_jn, DMY, "k", "r", 0, 0, 0, ".", ",", "-", ".", 2, 2, _24 ; Ja / Nej
+COUNTRY 45, 858, dk_collate_858, yn_jn, DMY, "k", "r", 0, 0, 0, ".", ",", "-", ".", 2, 2, _24
+COUNTRY 45, 865, dk_collate_865, yn_jn, DMY, "k", "r", 0, 0, 0, ".", ",", "-", ".", 2, 2, _24
+
+; ------------------------------------------------------------------------------
+; Sweden - Country Code 46
+; ------------------------------------------------------------------------------
+COUNTRY 46, 437, se_collate_437, yn_jn, YMD, "K", "r", 0, 0, 0, " ", ",", "-", ".", 3, 2, _24 ; Ja / Nej
+COUNTRY 46, 850, se_collate_850, yn_jn, YMD, "K", "r", 0, 0, 0, " ", ",", "-", ".", 3, 2, _24
+COUNTRY 46, 858, se_collate_858, yn_jn, YMD, "K", "r", 0, 0, 0, " ", ",", "-", ".", 3, 2, _24
+COUNTRY 46, 865, se_collate_865, yn_jn, YMD, "K", "r", 0, 0, 0, " ", ",", "-", ".", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Norway - Country Code 47
+; ------------------------------------------------------------------------------
+COUNTRY 47, 850, no_collate_850, yn_jn, DMY, "K", "r", 0, 0, 0, ".", ",", ".", ":", 2, 2, _24 ; Ja / Nei
+COUNTRY 47, 858, no_collate_858, yn_jn, DMY, "K", "r", 0, 0, 0, ".", ",", ".", ":", 2, 2, _24
+COUNTRY 47, 865, no_collate_865, yn_jn, DMY, "K", "r", 0, 0, 0, ".", ",", ".", ":", 2, 2, _24
+
+; ------------------------------------------------------------------------------
+; Poland - Country Code 48
+; ------------------------------------------------------------------------------
+COUNTRY 48, 850, pl_collate_850, yn_tn, YMD, "P", "L", "N", 0, 0, ".", ",", "-", ":", 0, 2, _24 ; Tak / Nie
+COUNTRY 48, 852, pl_collate_852, yn_tn, YMD, "Z", 88h,   0, 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 48, 858, pl_collate_858, yn_tn, YMD, "P", "L", "N", 0, 0, ".", ",", "-", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Germany - Country Code 49
+; ------------------------------------------------------------------------------
+COUNTRY 49, 437, de_collate_437, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 3, 2, _24 ; Ja / Nein
+COUNTRY 49, 850, de_collate_850, yn_jn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 49, 858, de_collate_858, yn_jn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Mexico - Country Code 52
+; ------------------------------------------------------------------------------
+COUNTRY 52, 437, es_collate_437, yn_sn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24 ; Currency: $ - Mexican Peso, Si / No
+COUNTRY 52, 850, es_collate_850, yn_sn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 52, 858, es_collate_858, yn_sn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Argentina - Country Code 54
+; ------------------------------------------------------------------------------
+COUNTRY 54, 437, es_collate_437, yn_sn, DMY, "$", 0, 0, 0, 0, ".", ",", "/", ".", 0, 2, _24 ; Si / No
+COUNTRY 54, 850, es_collate_850, yn_sn, DMY, "$", 0, 0, 0, 0, ".", ",", "/", ".", 0, 2, _24
+COUNTRY 54, 858, es_collate_858, yn_sn, DMY, "$", 0, 0, 0, 0, ".", ",", "/", ".", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Brazil - Country Code 55
+; ------------------------------------------------------------------------------
+COUNTRY 55, 437, pt_collate_437, yn_sn, DMY, "R", "$", 0, 0, 0, ".", ",", "/", ":", 2, 2, _24 ; Sim / Nao
+COUNTRY 55, 850, pt_collate_850, yn_sn, DMY, "R", "$", 0, 0, 0, ".", ",", "/", ":", 2, 2, _24
+COUNTRY 55, 858, pt_collate_858, yn_sn, DMY, "R", "$", 0, 0, 0, ".", ",", "/", ":", 2, 2, _24
+
+; ------------------------------------------------------------------------------
+; Malaysia - Country Code 60
+; ------------------------------------------------------------------------------
+COUNTRY 60, 437, en_collate_437, yn_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12 ; Yes / No
+
+; ------------------------------------------------------------------------------
+; Australia - Country Code 61
+; ------------------------------------------------------------------------------
+COUNTRY 61, 437, en_collate_437, yn_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12 ; Yes / No
+COUNTRY 61, 850, en_collate_850, yn_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12
+COUNTRY 61, 858, en_collate_858, yn_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "-", ":", 0, 2, _12
+
+; ------------------------------------------------------------------------------
+; Indonesia - Country Code 62
+; ------------------------------------------------------------------------------
+COUNTRY 62, 437, en_collate_437, yn_yt, DMY, "R", "p", 0, 0, 0, ".", ",", "/", ":", 0, 0, _24 ; Ya / Tidak
+COUNTRY 62, 850, en_collate_850, yn_yt, DMY, "R", "p", 0, 0, 0, ".", ",", "/", ":", 0, 0, _24
+
+; ------------------------------------------------------------------------------
+; Philippines - Country Code 63
+; ------------------------------------------------------------------------------
+COUNTRY 63, 437, en_collate_437, yn_oh, MDY, "P", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12 ; Oo / Hindi
+COUNTRY 63, 850, en_collate_850, yn_oh, MDY, "P", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12
+
+; ------------------------------------------------------------------------------
+; New Zealand - Country Code 64
+; ------------------------------------------------------------------------------
+COUNTRY 64, 437, en_collate_437, yn_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24 ; Currency: $ - New Zealand Dollar, Yes / No
+COUNTRY 64, 850, en_collate_850, yn_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 64, 858, en_collate_858, yn_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Singapore - Country Code 65
+; ------------------------------------------------------------------------------
+COUNTRY 65, 437, en_collate_437, yn_yn, DMY, "$", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _12 ; Yes / No
+
+; ------------------------------------------------------------------------------
+; Thailand - Country Code 66
+; ------------------------------------------------------------------------------
+COUNTRY 66, 437, en_collate_437, yn_yn, DMY, "B", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24 ; Yes / No
+COUNTRY 66, 850, en_collate_850, yn_yn, DMY, "B", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 66, 874, th_collate_874, yn_yn, DMY, "B", 0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Japan - Country Code 81
+; ------------------------------------------------------------------------------
+COUNTRY      81, 437, en_collate_437, yn_yn,              YMD, 9Dh, 0, 0, 0, 0, ",", ".", "-", ":", 0, 0, _24 ; Yes / No
+COUNTRY_DBCS 81, 932, jp_collate_932, yn_yn, jp_dbcs_932, YMD, 5Ch, 0, 0, 0, 0, ",", ".", "-", ":", 0, 0, _24
+
+; ------------------------------------------------------------------------------
+; South Korea - Country Code 82
+; ------------------------------------------------------------------------------
+COUNTRY      82, 437, en_collate_437, yn_ya,              YMD, "K", "R", "W", 0, 0, ",", ".", ".", ":", 0, 0, _24 ; ASCII fallback: Y / A
+COUNTRY_DBCS 82, 934, kr_collate_934, yn_ya, kr_dbcs_934, YMD, 5Ch,     0, 0, 0, 0, ",", ".", ".", ":", 0, 0, _24 ; Ye / A
+
+; ------------------------------------------------------------------------------
+; Vietnam - Country Code 84
+; ------------------------------------------------------------------------------
+COUNTRY 84,  437,  en_collate_437, yn_ck, DMY, "d", 0, 0, 0, 0, ".", ",", "/", ":", 3, 0, _24 ; Co / Khong
+COUNTRY 84,  850,  en_collate_850, yn_ck, DMY, "d", 0, 0, 0, 0, ".", ",", "/", ":", 3, 0, _24
+COUNTRY 84, 1258, vn_collate_1258, yn_ck, DMY, "d", 0, 0, 0, 0, ".", ",", "/", ":", 3, 0, _24
+
+; ------------------------------------------------------------------------------
+; China - Country Code 86
+; ------------------------------------------------------------------------------
+COUNTRY      86, 437, en_collate_437, yn_sb,                  YMD, 9Dh, 0, 0, 0, 0, ",", ".", ".", ":", 0, 2, _12 ; ASCI fallback: S / B
+COUNTRY_DBCS 86, 936, cn_collate_936, yn_cn_936, cn_dbcs_936, YMD, 5Ch, 0, 0, 0, 0, ",", ".", ".", ":", 0, 2, _12 ; Shi/Bushi
+
+; ------------------------------------------------------------------------------
+; Turkiye - Country Code 90
+; ------------------------------------------------------------------------------
+COUNTRY 90, 850, tr_collate_850, yn_eh, DMY, "T", "R", "Y", 0, 0, ".", ",", "/", ":", 4, 2, _24 ; Evet / Hayir
+COUNTRY 90, 857, tr_collate_857, yn_eh, DMY, "T", "R", "Y", 0, 0, ".", ",", "/", ":", 4, 2, _24
+COUNTRY 90, 858, tr_collate_858, yn_eh, DMY, "T", "R", "Y", 0, 0, ".", ",", "/", ":", 4, 2, _24
+
+; ------------------------------------------------------------------------------
+; India - Country Code 91
+; ------------------------------------------------------------------------------
+COUNTRY 91, 437, en_collate_437, yn_yn, DMY, "R", "s", 0, 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Yes / No
+
+; ------------------------------------------------------------------------------
+; Portugal - Country Code 351
+; ------------------------------------------------------------------------------
+COUNTRY 351, 850, pt_collate_850, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "-", ":", 0, 2, _24 ; Sim / Nao
+COUNTRY 351, 858, pt_collate_858, yn_sn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "-", ":", 0, 2, _24
+COUNTRY 351, 860, pt_collate_860, yn_sn, DMY, "E", "U", "R", 0, 0, ".", ",", "-", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Luxembourg - Country Code 352
+; ------------------------------------------------------------------------------
+COUNTRY 352, 437, fr_collate_437, yn_on, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Oui / Non
+COUNTRY 352, 850, fr_collate_850, yn_on, DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY 352, 858, fr_collate_858, yn_on, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Ireland - Country Code 353
+; ------------------------------------------------------------------------------
+COUNTRY 353, 437, en_collate_437, yn_yn, DMY, "E", "U", "R", 0, 0, ",", ".", "/", ":", 0, 2, _24 ; Yes / No
+COUNTRY 353, 850, en_collate_850, yn_yn, DMY, "E", "U", "R", 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 353, 858, en_collate_858, yn_yn, DMY, 0D5h,    0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Iceland - Country Code 354
+; ------------------------------------------------------------------------------
+COUNTRY 354, 850, is_collate_850, yn_jn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24 ; Ja / Nei
+COUNTRY 354, 858, is_collate_858, yn_jn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
+COUNTRY 354, 861, is_collate_861, yn_jn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
+COUNTRY 354, 865, is_collate_865, yn_jn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
+
+; ------------------------------------------------------------------------------
+; Albania - Country Code 355
+; ------------------------------------------------------------------------------
+COUNTRY 355, 850, en_collate_850, yn_pj, DMY, "L", "e", "k", 0, 0, ".", ",", ".", ":", 3, 2, _24 ; Po / Jo
+COUNTRY 355, 852, al_collate_852, yn_pj, DMY, "L", "e", "k", 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 355, 858, en_collate_858, yn_pj, DMY, "L", "e", "k", 0, 0, ".", ",", ".", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Malta - Country Code 356
+; ------------------------------------------------------------------------------
+COUNTRY 356, 437, en_collate_437, yn_il, DMY, "E", "U", "R", 0, 0, ",", ".", "/", ":", 0, 2, _24 ; Iva / Le
+COUNTRY 356, 850, en_collate_850, yn_il, DMY, "E", "U", "R", 0, 0, ",", ".", "/", ":", 0, 2, _24
+COUNTRY 356, 858, en_collate_858, yn_il, DMY, 0D5h,    0, 0, 0, 0, ",", ".", "/", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Cyprus - Country Code 357
+; ------------------------------------------------------------------------------
+COUNTRY 357, 850, en_collate_850, yn_no,     DMY, "E", "U", "R", 0, 0, ".", ",", "/", ":", 0, 2, _24 ; Nai / Oxi
+COUNTRY 357, 858, en_collate_858, yn_no,     DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+COUNTRY 357, 869, gr_collate_869, yn_gr_869, DMY, 0D5h,    0, 0, 0, 0, ".", ",", "/", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Finland - Country Code 358
+; ------------------------------------------------------------------------------
+COUNTRY 358, 437, fi_collate_437, yn_ke, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ".", 3, 2, _24 ; Kylla / Ei
+COUNTRY 358, 850, fi_collate_850, yn_ke, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ".", 3, 2, _24
+COUNTRY 358, 858, fi_collate_858, yn_ke, DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ".", 3, 2, _24
+COUNTRY 358, 865, fi_collate_865, yn_ke, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ".", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Bulgaria - Country Code 359
+; ------------------------------------------------------------------------------
+COUNTRY_LCASE 359,   808, bg_collate_808,   yn_cyrl_866, lcase_808,   DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24 ; 2026 Euro replaced BGN, Da / Net
+COUNTRY_LCASE 359,   849, bg_collate_849,   yn_cyrl_866, lcase_849,   DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY       359,   850, bg_collate_850,   yn_dn,                    DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY       359,   855, bg_collate_855,   yn_cyrl_855,              DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY       359,   858, bg_collate_858,   yn_dn,                    DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY_LCASE 359,   866, bg_collate_866,   yn_cyrl_866, lcase_866,   DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY       359,   872, bg_collate_872,   yn_cyrl_872,              DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY_LCASE 359,  1131, bg_collate_1131,  yn_cyrl_866, lcase_1131,  DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY_LCASE 359, 30033, bg_collate_30033, yn_cyrl_866, lcase_30033, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ",", 3, 2, _24 ; (MIK)
+
+; ------------------------------------------------------------------------------
+; Lithuania - Country Code 370
+; ------------------------------------------------------------------------------
+COUNTRY 370, 775, lt_collate_775, yn_tn, YMD, "E", "U", "R", 0, 0, " ", ",", "-", ":", 3, 2, _24 ; Taip / Ne
+COUNTRY 370, 850, lt_collate_850, yn_tn, YMD, "E", "U", "R", 0, 0, " ", ",", "-", ":", 3, 2, _24
+COUNTRY 370, 858, lt_collate_858, yn_tn, YMD, 0D5h,    0, 0, 0, 0, " ", ",", "-", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Latvia - Country Code 371
+; ------------------------------------------------------------------------------
+COUNTRY 371, 775, lv_collate_775, yn_jn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24 ; Ja / Ne
+COUNTRY 371, 850, lv_collate_850, yn_jn, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 371, 858, lv_collate_858, yn_jn, DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Estonia - Country Code 372
+; ------------------------------------------------------------------------------
+COUNTRY 372, 775, ee_collate_775, yn_je, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24 ; Jah / Ei
+COUNTRY 372, 850, ee_collate_850, yn_je, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 372, 858, ee_collate_858, yn_je, DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Belarus - Country Code 375
+; ------------------------------------------------------------------------------
+COUNTRY_LCASE 375,  849, by_collate_849,  yn_cyrl_866, lcase_849,  DMY, 0E0h, 0E3h, 0A1h, ".", 0, " ", ",", ".", ":", 3, 2, _24 ; Tak / Nie
+COUNTRY       375,  850, by_collate_850,  yn_tn,                   DMY, "B", "Y", "R",      0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY       375,  858, by_collate_858,  yn_tn,                   DMY, "B", "Y", "R",      0, 0, " ", ",", ".", ",", 3, 2, _24
+COUNTRY_LCASE 375, 1131, by_collate_1131, yn_cyrl_866, lcase_1131, DMY, 0E0h, 0E3h, 0A1h, ".", 0, " ", ",", ".", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Ukraine - Country Code 380
+; ------------------------------------------------------------------------------
+COUNTRY_LCASE 380,  848, ua_collate_848,  yn_cyrl_866, lcase_848,  DMY, 0A3h, 0E0h, 0ADh, ".", 0, " ", ",", ".", ":", 3, 2, _24 ; Tak / Ni [Note: Uses same bytes as Da / Net]
+COUNTRY_LCASE 380,  855, ua_collate_855,  yn_cyrl_866, lcase_855,  DMY, 0A3h, 0E0h, 0ADh, ".", 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY_LCASE 380,  866, ua_collate_866,  yn_cyrl_866, lcase_866,  DMY, 0A3h, 0E0h, 0ADh, ".", 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY_LCASE 380, 1125, ua_collate_1125, yn_cyrl_866, lcase_1125, DMY, 0A3h, 0E0h, 0ADh, ".", 0, " ", ",", ".", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Serbia - Country Code 381
+; ------------------------------------------------------------------------------
+COUNTRY 381, 850, sh_collate_850, yn_dn,       DMY, "D", "i", "n",    0, 0, ".", ",", ".", ":", 3, 2, _24 ; Da / Ne
+COUNTRY 381, 852, sh_collate_852, yn_dn,       DMY, "D", "i", "n",    0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 381, 855, sh_collate_855, yn_cyrl_855, DMY, 0A7h, 0B7h, 0D4h, 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 381, 858, sh_collate_858, yn_dn,       DMY, "D", "i", "n",    0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 381, 872, sh_collate_872, yn_cyrl_872, DMY, 0A7h, 0B7h, 0D4h, 0, 0, ".", ",", ".", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Montenegro - Country Code 382
+; ------------------------------------------------------------------------------
+COUNTRY 382, 850, sh_collate_850, yn_dn,       DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24 ; Da / Ne
+COUNTRY 382, 852, sh_collate_852, yn_dn,       DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 382, 855, sh_collate_855, yn_cyrl_855, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 382, 858, sh_collate_858, yn_dn,       DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 382, 872, sh_collate_872, yn_cyrl_855, DMY, 0CFh,    0, 0, 0, 0, ".", ",", ".", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Kosovo - Country Code 383
+; ------------------------------------------------------------------------------
+COUNTRY 383, 850, xk_collate_850, yn_pj, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24 ; Po / Jo
+COUNTRY 383, 852, xk_collate_852, yn_pj, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 383, 855, xk_collate_855, yn_pj, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 383, 858, xk_collate_858, yn_pj, DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ":", 0, 2, _24
+COUNTRY 383, 872, xk_collate_872, yn_pj, DMY, 0CFh,    0, 0, 0, 0, ".", ",", ".", ":", 0, 2, _24
+
+; ------------------------------------------------------------------------------
+; Croatia - Country Code 385
+; ------------------------------------------------------------------------------
+COUNTRY 385, 850, hr_collate_850, yn_dn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ".", 3, 2, _24 ; Da / Ne
+COUNTRY 385, 852, hr_collate_852, yn_dn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ".", 3, 2, _24
+COUNTRY 385, 858, hr_collate_858, yn_dn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ".", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Slovenia - Country Code 386
+; ------------------------------------------------------------------------------
+COUNTRY 386, 850, si_collate_850, yn_dn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 3, 2, _24 ; Da / Ne
+COUNTRY 386, 852, si_collate_852, yn_dn, DMY, "E", "U", "R", 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 386, 858, si_collate_858, yn_dn, DMY, 0D5h,    0, 0, 0, 0, ".", ",", ".", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Bosnia-Herzegovina - Country Code 387
+; ------------------------------------------------------------------------------
+COUNTRY 387, 850, sh_collate_850, yn_dn,       DMY, "K", "M", 0, 0, 0, ".", ",", ".", ".", 1, 2, _24 ; Da / Ne
+COUNTRY 387, 852, sh_collate_852, yn_dn,       DMY, "K", "M", 0, 0, 0, ".", ",", ".", ".", 1, 2, _24
+COUNTRY 387, 855, sh_collate_855, yn_cyrl_855, DMY, "K", "M", 0, 0, 0, ".", ",", ".", ":", 1, 2, _24
+COUNTRY 387, 858, sh_collate_858, yn_dn,       DMY, "K", "M", 0, 0, 0, ".", ",", ".", ".", 1, 2, _24
+COUNTRY 387, 872, sh_collate_872, yn_cyrl_872, DMY, "K", "M", 0, 0, 0, ".", ",", ".", ":", 1, 2, _24
+
+; ------------------------------------------------------------------------------
+; North Macedonia - Country Code 389
+; ------------------------------------------------------------------------------
+COUNTRY 389, 850, mk_collate_850, yn_dn,       DMY, "D", "e", "n",    0, 0, ".", ",", ".", ":", 3, 2, _24 ; Da / Ne
+COUNTRY 389, 855, mk_collate_855, yn_cyrl_855, DMY, 0A7h, 0A8h, 0D4h, 0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 389, 858, mk_collate_858, yn_dn,       DMY, "D", "e", "n",    0, 0, ".", ",", ".", ":", 3, 2, _24
+COUNTRY 389, 872, mk_collate_872, yn_cyrl_872, DMY, 0A7h, 0A8h, 0D4h, 0, 0, ".", ",", ".", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Czech Republic - Country Code 420
+; ------------------------------------------------------------------------------
+COUNTRY 420, 850, cz_collate_850, yn_an, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24 ; Ano / Ne
+COUNTRY 420, 852, cz_collate_852, yn_an, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
+COUNTRY 420, 858, cz_collate_858, yn_an, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
+
+; ------------------------------------------------------------------------------
+; Slovakia - Country Code 421
+; ------------------------------------------------------------------------------
+COUNTRY 421, 850, sk_collate_850, yn_an, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24 ; Ano / Nie
+COUNTRY 421, 852, sk_collate_852, yn_an, DMY, "E", "U", "R", 0, 0, " ", ",", ".", ":", 3, 2, _24
+COUNTRY 421, 858, sk_collate_858, yn_an, DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
+
+; ------------------------------------------------------------------------------
+; Middle East - Country Code 785
+; *** temporary - may be removed and split into actual countries in the future
+; ------------------------------------------------------------------------------
+COUNTRY 785, 850, xx_collate_850, yn_nl,     DMY, 0CFh, 0, 0, 0, 0, ".", ",", "/", ":", 3, 3, _12 ; Na'am / La
+COUNTRY 785, 858, xx_collate_858, yn_nl,     DMY, 0CFh, 0, 0, 0, 0, ".", ",", "/", ":", 3, 3, _12
+COUNTRY 785, 864, xx_collate_864, yn_xx_864, DMY, 0A4h, 0, 0, 0, 0, ".", ",", "/", ":", 1, 3, _12
+
+; ------------------------------------------------------------------------------
+; Israel - Country Code 972
+; ------------------------------------------------------------------------------
+COUNTRY 972, 850, il_collate_850, yn_kl, DMY, "N", "I", "S", 0, 0, ",", ".", " ", ":", 2, 2, _24 ; Ken / Lo
+COUNTRY 972, 858, il_collate_858, yn_kl, DMY, "N", "I", "S", 0, 0, ",", ".", " ", ":", 2, 2, _24
+COUNTRY 972, 862, il_collate_862, yn_il_862, DMY, 99h, 0, 0, 0, 0, ",", ".", " ", ":", 2, 2, _24
+
+COUNTRY_ENTRIES_END
+
+section .data4 align=1
+; ==============================================================================
+; 3: UPPERCASE/LOWERCASE TABLES (Subfunctions 2, 3, 4)
+; ==============================================================================
+;
+; Uppercase tables define character case mappings for each codepage.
 ; Uppercase equivalents of chars 80h to FFh
-;------------------------------------------------------------------------------
+; Structure:
+;   - Signature: 0FFh,'UCASE  ' (8 bytes)
+;   - Size: Word (2 bytes)
+;   - Table: 128 bytes (mappings for characters 80h-FFh)
+;
+; Lowercase tables (subfunction 3) are only defined when different
+; from the uppercase mappings. Structure is similar:
+;   - Signature: 0FFh,'LCASE  ' (8 bytes)
+;   - Size: Word (2 bytes)
+;   - Table: 256 bytes (mappings for characters 00h-FFh)
+;
+; Filename uppercase tables (subfunction 4) are usually the same as
+; regular uppercase tables.
+
+; ------------------------------------------------------------------------------
+; Codepage 437 (US/OEM)
+; ------------------------------------------------------------------------------
+
 ucase_437 db 0FFh,"UCASE  "	; Same as kernel's harcoded
 	  dw 128
 db 128, 154,  69,  65, 142,  65, 143, 128
@@ -3549,8 +1132,11 @@ db 232, 233, 234, 235, 236, 237, 238, 239
 db 240, 241, 242, 243, 244, 245, 246, 247
 db 248, 249, 250, 251, 252, 253, 254, 255
 
+ucase_874 equ ucase_437
+ucase_1258 equ ucase_437
+
 ucase_850 db 0FFh,"UCASE  "	; From Steffen Kaiser's UNF package
-	  dw 128		; small fix: 'ÿ' -> 'Y' -- eca
+	  dw 128
 db 128, 154, 144, 182, 142, 183, 143, 128
 db 210, 211, 212, 216, 215, 222, 142, 143
 db 144, 146, 146, 226, 153, 227, 234, 235
@@ -3607,7 +1193,7 @@ db 240, 241, 242, 243, 244, 245, 246, 247
 db 248, 249, 250, 251, 252, 253, 254, 255
 
 ucase_857 db 0FFh,"UCASE  "	; Turkish. Needs NLSFUNC for proper uppercasing
-          dw 128		; of letter "i" (dotted i)
+          dw 128            ; of letter "i" (dotted i)
 db 128, 154, 144, 182, 142, 183, 143, 128
 db 210, 211, 212, 216, 215,  73, 142, 143
 db 144, 146, 146, 226, 153, 227, 234, 235
@@ -3905,6 +1491,7 @@ db 232, 233, 234, 235, 236, 237, 238, 239
 db 240, 241, 242, 243, 244, 245, 246, 247
 db 248, 249, 250, 251, 252, 253, 254, 255
 
+;------------------------------------------------------------------------------
 ; Lowercase equivalents of chars 00h to FFh
 ;------------------------------------------------------------------------------
 lcase_866 db 0FFh,"LCASE  "
@@ -3943,6 +1530,7 @@ db 241, 241, 243, 243, 245, 245, 247, 247
 db 248, 249, 250, 251, 252, 253, 254, 255
 
 lcase_808 equ lcase_866
+lcase_1125 equ lcase_866
 
 lcase_848 db 0FFh,"LCASE  "
           dw 256
@@ -3979,7 +1567,7 @@ db 232, 233, 234, 235, 236, 237, 238, 239
 db 241, 241, 243, 243, 245, 245, 247, 247
 db 249, 249, 250, 251, 252, 253, 254, 255
 
-lcase_1125 equ lcase_848
+lcase_855 equ lcase_848
 
 lcase_849 db 0FFh,"LCASE  "
           dw 256
@@ -4053,6 +1641,35 @@ db 232, 233, 234, 235, 236, 237, 238, 239
 db 240, 241, 242, 243, 244, 245, 246, 247
 db 248, 249, 250, 251, 252, 253, 254, 255
 
+
+section .data5 align=1
+; ==============================================================================
+; 4: FILENAME CHARACTER TABLE (Subfunction 5)
+; ==============================================================================
+;
+; Defines valid/invalid characters in filenames.
+; Structure:
+;   - Signature: 0FFh,'FCHAR  ' (8 bytes - note: FCHAR has 2 spaces)
+;   - Size: Word (22 bytes for data section)
+;   - Data:
+;     - Byte: File characteristics (142/01h)
+;     - Byte: Lowest permissible character value (0)
+;     - Byte: Highest permissible character value (255)
+;     - Byte: File characteristics 2 (65/00h)
+;     - Byte: First excluded character in range (0)
+;     - Byte: Last excluded character in range (32 = space)
+;     - Byte: File characteristics 3 (238/02h)
+;     - Byte: Number of individual illegal characters (14)
+;     - Bytes: List of terminator characters
+;
+; This table is shared among all countries since filename rules are
+; consistent across DOS implementations. The excluded range is 0-32
+; (control characters and space), and specific terminators include:
+;   . " / \ [ ] : | < > + = ; ,
+;
+; These characters have special meaning in DOS and cannot appear in filenames.
+;
+; ------------------------------------------------------------------------------
 ; Filename terminator table
 ;------------------------------------------------------------------------------
 fchar db 0FFh,"FCHAR  "		; Same as kernel's hardcoded
@@ -4067,8 +1684,37 @@ db 238	  ; ??? (02h for MS-DOS 3.30-6.00)
 db  14	  ; number of illegal (terminator) characters
 ; characters which terminate a filename:
 db  46,	 34,  47,  92,	91,  93,  58, 124 ; ."/\[]:|
-db  60,	 62,  43,  61,	59,  44		  ; <>+=;,
+db  60,	 62,  43,  61,	59,  44           ; <>+=;,
 
+
+section .data6 align=1
+; ==============================================================================
+; 5: COLLATING SEQUENCES (Subfunction 6)
+; ==============================================================================
+;
+; Collating sequences define the sort order for characters.
+; Each table maps character values to sorting weights.
+;
+; Structure:
+;   - Signature: 0FFh,'COLLATE' (8 bytes)
+;   - Size: Word (256 bytes for the table)
+;   - Table: 256 bytes (sorting weights for chars 00h-FFh)
+;
+; The collating sequence is critical for:
+;   - DIR command sorting
+;   - String comparisons (SORT command)
+;   - File search ordering
+;
+; Different languages have different collating rules. For example:
+;   - Spanish: CH treated as single letter after C, LL after L
+;   - German: umlauts sorted like base letter or as separate
+;   - Nordic: aa, ae, oe come after z
+;   - Czech/Slovak: ch, diacritics have specific positions
+;
+; ------------------------------------------------------------------------------
+; English Collating Sequences
+; ------------------------------------------------------------------------------
+;
 ; Collating sequence
 ;------------------------------------------------------------------------------
 en_collate_437 db 0FFh,"COLLATE"		; English, CP437
@@ -4455,6 +2101,8 @@ db  82, 225,  82,  82,  82,  82, 230, 231
 db 231,  90,  90,  90,  95,  95, 238, 239
 db 240, 241, 242, 243, 244, 245, 246, 247
 db 248, 249, 250,  49,  51,  50, 254, 255
+
+tr_collate_858 equ tr_collate_850
 
 dk_collate_865 db 0FFh,"COLLATE"		; Danish, CP865
 	       dw 256
@@ -4857,7 +2505,7 @@ gr_collate_858 equ pl_collate_858	; Polish, CP858
 
 hu_collate_852 equ ru_collate_852	; Hungarian, CP852
 hu_collate_850 equ pl_collate_850	; Hungarian, CP850
-hu_collate_858 equ gr_collate_858	; Hungarian, CP858
+hu_collate_858 equ pl_collate_858	; Hungarian, CP858
 
 sh_collate_852 equ ru_collate_852	; Serbo-Croatian, CP852
 sh_collate_855 equ ru_collate_855	; Serbo-Croatian, CP855
@@ -4876,6 +2524,10 @@ ch_collate_437 equ en_collate_437	; Switzerland, CP437
 cz_collate_852 equ ru_collate_852	; Czech, CP852
 cz_collate_850 equ pl_collate_850	; Czech, CP850
 cz_collate_858 equ gr_collate_858	; Czech, CP858
+
+sk_collate_852 equ cz_collate_852	; Slovakia, CP852
+sk_collate_850 equ cz_collate_850	; Slovakia, CP850
+sk_collate_858 equ cz_collate_858	; Slovakia, CP858
 
 se_collate_850 db 0FFh,"COLLATE"	; Swedish, CP850
 	       dw 256
@@ -4982,6 +2634,9 @@ db 232, 233, 234, 235, 236, 237, 238, 239
 db 240, 241, 242, 243, 244, 245, 246, 247
 db 248, 249, 250, 251,  78,  50, 254, 255
 
+se_collate_865 equ se_collate_437
+
+fi_collate_865 equ se_collate_865	; Finnish, CP865
 fi_collate_850 equ se_collate_850	; Finnish, CP850
 fi_collate_858 equ se_collate_858	; Finnish, CP858
 fi_collate_437 equ se_collate_437	; Finnish, CP437
@@ -5209,15 +2864,13 @@ db 165, 166, 167, 168, 169, 170, 171, 172
 db 135, 135, 132, 132, 136, 136, 141, 141
 db 142, 142, 250, 251, 252, 36,  254, 255
 
+ua_collate_855 equ ua_collate_848
+ua_collate_866 equ ua_collate_848
 ua_collate_1125 equ ua_collate_848	; Ukrainian, CP1125
 
 hr_collate_852 equ ru_collate_852	; Croatian, CP852
 hr_collate_850 equ pl_collate_850	; Croatian, CP850
 hr_collate_858 equ gr_collate_858	; Croatian, CP858
-
-me_collate_852 equ ru_collate_852	; Montenegro, CP852
-me_collate_850 equ pl_collate_850	; Montenegro, CP850
-me_collate_858 equ gr_collate_858	; Montenegro, CP858
 
 si_collate_852 equ ru_collate_852	; Slovenian, CP852
 si_collate_850 equ pl_collate_850	; Slovenian, CP850
@@ -5340,6 +2993,7 @@ db 232, 233, 234, 235, 236, 237, 238, 239
 db 240, 241, 242, 243, 244, 245, 246, 247
 db 248, 249, 250, 251, 252, 253, 254, 255
 
+is_collate_865 equ is_collate_861
 is_collate_850 equ en_collate_850
 is_collate_858 equ en_collate_858
 
@@ -5460,51 +3114,43 @@ db 248, 249, 250, 251, 252, 253, 254, 255
 lt_collate_850 equ en_collate_850
 lt_collate_858 equ en_collate_858
 
-; REVIEW NEEDED: Verify exact ordering of all diacritical variants and digraphs
-sk_collate_852 db 0FFh,"COLLATE"		; Slovak, CP852
-	       dw 256
-db   0,   1,   2,   3,   4,   5,   6,   7
-db   8,   9,  10,  11,  12,  13,  14,  15
-db  16,  17,  18,  19,  20,  21,  22,  23
-db  24,  25,  26,  27,  28,  29,  30,  31
-db  32,  33,  34,  35,  36,  37,  38,  39
-db  40,  41,  42,  43,  44,  45,  46,  47
-db  48,  49,  50,  51,  52,  53,  54,  55
-db  56,  57,  58,  59,  60,  61,  62,  63
-db  64,  65,  67,  69,  71,  73,  75,  77
-db  79,  81,  83,  85,  87,  89,  91,  93
-db  95,  97,  99, 101, 103, 105, 107, 109
-db 111, 113, 115, 117, 118, 119, 120, 121
-db  64,  65,  67,  69,  71,  73,  75,  77
-db  79,  81,  83,  85,  87,  89,  91,  93
-db  95,  97,  99, 101, 103, 105, 107, 109
-db 111, 113, 115, 116, 118, 119, 120, 121
-db 128, 129, 130, 131, 132, 133, 134, 135
-db 136, 137, 138, 139, 140, 141, 142, 143
-db 144, 145, 146, 147, 148, 149, 150, 151
-db 152, 153, 154, 155, 156, 157, 158, 159
-db 160, 161, 162, 163, 164, 165, 166, 167
-db 168, 169, 170, 171, 172, 173, 174, 175
-db 176, 177, 178, 179, 180, 181, 182, 183
-db 184, 185, 186, 187, 188, 189, 190, 191
-db 192, 193, 194, 195, 196, 197, 198, 199
-db 200, 201, 202, 203, 204, 205, 206, 207
-db 208, 209, 210, 211, 212, 213, 214, 215
-db 216, 217, 218, 219, 220, 221, 222, 223
-db 224, 225, 226, 227, 228, 229, 230, 231
-db 232, 233, 234, 235, 236, 237, 238, 239
-db 240, 241, 242, 243, 244, 245, 246, 247
-db 248, 249, 250, 251, 252, 253, 254, 255
+th_collate_874 equ en_collate_437  ; Thai uses basic ASCII sort order for Latin characters
+vn_collate_1258 equ en_collate_437  ; Vietnamese uses ASCII sort order
+al_collate_852 equ ru_collate_852   ; Albanian shares Central European sort
 
-sk_collate_850 equ en_collate_850
-sk_collate_858 equ en_collate_858
+xk_collate_852 equ al_collate_852
+xk_collate_855 equ ru_collate_855
+xk_collate_872 equ ru_collate_872
+xk_collate_850 equ en_collate_850
+xk_collate_858 equ en_collate_858
 
-; Dual Byte Character Sets
-;   lead-byte ranges
-;------------------------------------------------------------------------------
+section .data7 align=1
+; ==============================================================================
+; 6: DBCS TABLES (Subfunction 7)
+; ==============================================================================
+;
+; Double-Byte Character Set (DBCS) tables define lead byte ranges
+; for multibyte character encodings used in Asian languages.
+;
+; Structure:
+;   - Signature: 0FFh,'DBCS   ' (8 bytes)
+;   - Size: Word (2 bytes, always 0)
+;   - Ranges: Pairs of bytes (start, end) for lead byte ranges
+;   - Terminator: 0,0
+;
+; Lead bytes indicate that the next byte should be treated as part
+; of a two-byte character rather than a separate character.
+;
+; Examples:
+;   - Japanese (CP932): Lead bytes 81h-9Fh, E0h-FCh
+;   - Korean (CP934): Lead bytes 81h-FEh
+;   - Chinese (CP936): Lead bytes 81h-FEh
+;
+; For non-DBCS codepages, this table is empty (just terminator).
+
 dbcs_empty db 0FFh,"DBCS   "
-      dw 0			; Table length
-      db 0, 0			; Table terminator (even if length == 0)
+      dw 0          ; Table length
+      db 0, 0       ; Table terminator (even if length == 0)
 
 ; Japan, CP932
 ; Source: http://www.microsoft.com/globaldev/reference/dbcs/932.htm
@@ -5526,172 +3172,108 @@ cn_dbcs_936 db 0FFh,"DBCS   "
       db 081h, 0FCh
       db 000h, 000h
 
-; Yes/No table
-; yes_l : Character (single byte) or leadbyte (DBCS) for YES
-; yes_h : trailbyte for YES
-; no_l	: Character (single byte) or leadbyte (DBCS) for NO
-; no_h	: trailbyte for NO
+section .data8 align=1
+; ==============================================================================
+; 7: YES/NO TABLES (Subfunction 35)
+; ==============================================================================
+;
+; Yes/No tables define characters used for yes/no prompts.
+;
+; Structure:
+;   - Signature: 0FFh,'YESNO  ' (8 bytes)
+;   - Size: Word (2 bytes, always 4)
+;   - Data: 4 bytes arranged as follows:
+;     Byte 0: YES character (usually uppercase), (single byte) or leadbyte (DBCS)
+;     Byte 1: YES trailing byte (0 for single-byte, DBCS trail byte)
+;     Byte 2: NO character (usually uppercase), (single byte) or leadbyte (DBCS)
+;     Byte 3: NO trailing byte (0 for single-byte, DBCS trail byte)
+;
+; Examples:
+;   - English: Y/N (Yes/No)
+;   - French: O/N (Oui/Non)
+;   - German: J/N (Ja/Nein)
+;   - Spanish: S/N (Si/No)
+;   - Dutch: J/N (Ja/Nee)
+
 ;------------------------------------------------------------------------------
-es_yn db 0FFh,"YESNO  "
-      dw 4
-      db  'S',0,'N',0 ; Spanish
 
-de_yn db 0FFh,"YESNO  "
-      dw 4
-      db  'J',0,'N',0 ; German
+; Macro: YESNO_TABLE
+; Creates a Yes/No prompt character table for subfunction 35
+;
+; Parameters:
+;   %1 = table label (e.g., en_yn, es_yn, fr_yn)
+;   %2 = YES character (single byte 'Y', 'S', or DBCS lead byte)
+;   %3 = YES trailing byte (0 for single-byte, DBCS trail byte for DBCS)
+;   %4 = NO character (single byte 'N', or DBCS lead byte)
+;   %5 = NO trailing byte (0 for single-byte, DBCS trail byte for DBCS)
+;
+; E.g for Spanish,
+; YESNO es_yn, 'S', 'N' ; Spanish
+; generates:
+; es_yn db 0FFh,"YESNO  "
+;       dw 4
+;       db 'S',0,'N',0
 
-en_yn db 0FFh,"YESNO  "
-      dw 4
-      db  'Y',0,'N',0 ; English
+%macro YESNO 3-5
+%1 db 0FFh,"YESNO  "
+   dw 4
+   %if %0 == 5
+     db %2,%3,%4,%5
+   %elif %0 == 3
+     db %2,0,%3,0
+   %else
+     %error "Incorrect arguments to YESNO macro - YESNO label, 'Y', 'N' or YESNO label, 'Y', 0, 'N', 0"
+   %endif
+%endmacro
 
-fr_yn db 0FFh,"YESNO  "
-      dw 4
-      db  'O',0,'N',0 ; French
+; ------------------------------------------------------------------------------
+; Common character combinations (reusable Y/N pairs)
+; ------------------------------------------------------------------------------
+YESNO yn_yn, 'Y', 'N'           ; Y/N: English, etc.
+YESNO yn_sn, 'S', 'N'           ; S/N: Spanish, Portuguese, Italian, Catalan, Galician
+YESNO yn_jn, 'J', 'N'           ; J/N: German, Dutch, Danish, Swedish, Norwegian, Icelandic, Latvian
+YESNO yn_on, 'O', 'N'           ; O/N: French
+YESNO yn_tn, 'T', 'N'           ; T/N: Polish, Lithuanian
+YESNO yn_an, 'A', 'N'           ; A/N: Czech, Slovak
+YESNO yn_dn, 'D', 'N'           ; D/N: Romanian, Croatian, Slovenian, Serbian (Latin)
+YESNO yn_in, 'I', 'N'           ; I/N: Hungarian
+YESNO yn_ke, 'K', 'E'           ; K/E: Finnish
+YESNO yn_je, 'J', 'E'           ; J/E: Estonian
+YESNO yn_be, 'B', 'E'           ; B/E: Basque
+YESNO yn_no, 'N', 'O'           ; N/O: Greek (Latin)
+YESNO yn_eh, 'E', 'H'           ; E/H: Turkish
+YESNO yn_kl, 'K', 'L'           ; K/L: Hebrew (Latin)
+YESNO yn_nl, 'N', 'L'           ; N/L: Arabic (Latin)
+YESNO yn_sb, 'S', 'B'           ; S/B: Chinese (Latin)
+YESNO yn_ya, 'Y', 'A'           ; Y/A: Korean (Latin)
+YESNO yn_pj, 'P', 'J'           ; P/J: Albanian (Po/Jo)
+YESNO yn_yt, 'Y', 'T'           ; Y/T: Indonesian (Ya/Tidak)
+YESNO yn_oh, 'O', 'H'           ; O/H: Filipino (Oo/Hindi)
+YESNO yn_il, 'I', 'L'           ; I/L: Maltese (Iva/Le)
+YESNO yn_ck, 'C', 'K'           ; C/K: Vietnamese (Co/Khong)
 
-pt_yn equ es_yn       ; Portuguese
+; Cyrillic codepage combinations
+YESNO yn_cyrl_866,  84h, 0,  8Dh, 0    ; CP866 (Russian, Bulgarian, Belarusian, Ukrainian)
+YESNO yn_cyrl_855, 0A7h, 0, 0D5h, 0    ; CP855 (Russian, Bulgarian, Serbian, Macedonian)
+YESNO yn_cyrl_872, 0A7h, 0, 0D5h, 0    ; CP872 (Russian, Bulgarian, Serbian, Macedonian)
 
-fi_yn db 0FFh,"YESNO  "
-      dw 4
-      db  'K',0,'E',0 ; Finnish
+; Greek codepage combinations
+YESNO yn_gr_869, 0B8h, 0, 0BEh, 0      ; N/O: CP869 (Greek)
+YESNO yn_gr_737,  8Ch, 0,  8Eh, 0      ; N/O: CP737 (Greek)
 
+; Hebrew codepage combinations
+YESNO yn_il_862, 8Bh, 0, 8Ch, 0        ; CP862 (Hebrew)
 
-it_yn equ es_yn       ; Italian
+; Arabic codepage combinations
+YESNO yn_xx_864, 0F2h, 0, 9Dh, 0       ; CP864 (Arabic)
 
-gr_yn db 0FFh,"YESNO  "
-      dw 4
-      db  'N',0,'O',0 ; Greek, latin alphabet
+; Korean codepage combinations
+YESNO yn_kr_934, 0BFh, 0B9h, 0BEh, 0C6h ; CP934 (Korean Hangul)
 
-gr_yn_869 db 0FFh,"YESNO  "
-      dw 4
-      db  0B8h,0,0BEh,0 ; Greek, codepage 869
+; Chinese codepage combinations
+YESNO yn_cn_936, 0CAh, 0C7h, 0B2h, 0BBh ; CP936 (Chinese Simplified)
 
-gr_yn_737 db 0FFh,"YESNO  "
-      dw 4
-      db  8Ch,0,8Eh,0 ; Greek, codepage 737
-
-nl_yn equ de_yn       ; Dutch
-
-tr_yn db 0FFh,"YESNO  "
-      dw 4
-      db  'E',0,'H',0 ; Turkish
-
-ru_yn_866 db 0FFh,"YESNO  "
-      dw 4
-      db  84h,0,8Dh,0   ; Russian CP866
-
-ru_yn_808 equ ru_yn_866
-
-ru_yn_855 db 0FFh,"YESNO  "
-      dw 4
-      db 0A7h,0,0D5h,0  ; Russian CP855
-
-ru_yn_872 equ ru_yn_855
-
-ru_yn db 0FFh,"YESNO  "
-      dw 4
-      db 'D',0,'N',0    ; Russian Latin
-
-by_yn_849 equ ru_yn_866 ; Belarusian
-by_yn_1131 equ ru_yn_866
-by_yn equ ru_yn         ; Belarusian Latin
-
-ua_yn_848 equ ru_yn_866 ; Ukrainian
-ua_yn_1125 equ ru_yn_866
-
-bg_yn_855 equ ru_yn_855 ; Bulgarian CP855
-bg_yn_872 equ ru_yn_872 ; Bulgarian CP872
-bg_yn_866 equ ru_yn_866 ; Bulgarian CP866
-bg_yn_808 equ ru_yn_808 ; Bulgarian CP808
-bg_yn_849 equ by_yn_849 ; Bulgarian CP849
-bg_yn_1131 equ by_yn_1131 ; Bulgarian CP1131
-bg_yn_30033 equ bg_yn_866 ; Bulgarian MIK
-bg_yn equ ru_yn         ; Bulgarian Latin
-
-hu_yn db 0FFh,"YESNO  "
-      dw 4
-      db 'I',0,'N',0    ; Hungarian
-
-
-sh_yn_855 equ ru_yn_855 ; Serbo-Croatian CP855
-sh_yn_872 equ ru_yn_872 ; Serbo-Croatian CP872
-sh_yn equ ru_yn    	; Serbo-Croatian, latin alphabet
-
-hr_yn equ ru_yn    	; Croatian, latin alphabet
-
-mk_yn_855 equ ru_yn_855 ; Macedonian CP855
-mk_yn_872 equ ru_yn_872 ; Macedonian CP872
-mk_yn equ ru_yn    	; Macedonian latin alphabet
-
-ro_yn equ ru_yn		; Romanian
-
-cz_yn db 0FFh,"YESNO  "
-      dw 4
-      db 'A','0','N',0	; Czech
-
-pl_yn db 0FFh,"YESNO  "
-      dw 4
-      db 'T','0','N',0	; Polish
-
-dk_yn equ de_yn    	; Danish
-
-se_yn equ de_yn    	; Swedish
-
-no_yn equ de_yn    	; Norwegian
-
-si_yn equ ru_yn		; Slovenian
-
-kr_yn db 0FFh,"YESNO  "
-      dw 4
-      db 'Y','0','A',0	; Korean, latin alphabet (Yeh, Anio)
-
-kr_yn_934 db 0FFh,"YESNO  "
-      dw 4
-      db 0BFh,0B9h,0BEh,0C6h	; Korean, CP934 (Hangul syllables "Ye" and "A")
-
-cn_yn db 0FFh,"YESNO  "
-      dw 4
-      db 'S','0','B',0	; Chinese (Mandrin), latin alphabet (Shi, Bushi)
-
-cn_yn_936 db 0FFh,"YESNO  "
-      dw 4
-      db 0CAh,0C7h,0B2h,0BBh; Chinese (Mandrin), CP936
-
-il_yn db 0FFh,"YESNO  "
-      dw 4
-      db 'K','0','L',0	; Hebrew, latin alphabet (Ken, Lo)
-
-il_yn_862 db 0FFh,"YESNO  "
-      dw 4
-      db 8Bh,'0',8Ch,0	; Hebrew, CP862
-
-xx_yn db 0FFh,"YESNO  "
-      dw 4
-      db 'N','0','L',0	; Arabic, latin alphabet (Nam, La)
-
-xx_yn_864 db 0FFh,"YESNO  "
-      dw 4
-      db 0F2h,'0',9Dh,0	; Arabic, CP864
-
-ca_yn equ es_yn		; Catalan
-
-gl_yn equ es_yn		; Gallegan
-
-eu_yn db 0FFh,"YESNO  "
-      dw 4
-      db 'B','0','E',0	; Basque
-
-is_yn equ de_yn ; Icelandic, J = Ja (Yes), N = Nei (No)
-
-ee_yn db 0FFh,"YESNO  "
-      dw 4
-      db 'J','0','E',0	; J = Jah (Yes), E = Ei (No)
-
-lv_yn  equ de_yn ; Latvia, J = Ja (Yes), N = Ne (No)
-
-lt_yn equ pl_yn	; Lithuanian, T = Taip (Yes), N = Ne (No)
-
-sk_yn db 0FFh,"YESNO  "
-      dw 4
-      db 'A','0','N',0	; A = Ano (Yes), N = Nie (No)
-
+; ==============================================================================
+; END OF FILE
+; ==============================================================================
 db "FreeDOS" ; Trailing - as recommended by the Ralf Brown Interrupt List
