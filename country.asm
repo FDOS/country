@@ -279,8 +279,8 @@ _24 equ 1       ; 24-hour clock
     dw 22                       ; Length of data
     dw %1, %2, %3               ; Country ID, Codepage, Date format
     db %4, %5, %6, %7, %8       ; Currency symbol (5 bytes)
-    db %9, %10                  ; Thousands sep, Decimal sep
-    db %11, %12                 ; Date sep, Time sep
+    db %9, 0, %10, 0            ; Thousands sep, Decimal sep
+    db %11, 0, %12, 0           ; Date sep, Time sep
     db %13                      ; Currency format
     db %14                      ; Decimal places
     db %15                      ; Time format
