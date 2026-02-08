@@ -175,7 +175,7 @@
 ; 385 = Croatia (HR)               386 = Slovenia (SI)
 ; 387 = Bosnia-Herzegovina (BA)    389 = North Macedonia (MK)
 ; 420 = Czech Republic (CZ)        421 = Slovakia (SK)
-; 785 = Middle East (XX) *temp*    972 = Israel (IL)
+; 785 = Middle East/Arabic (XX)    972 = Israel (IL)
 ;
 ; Multilingual (4xxxx codes):
 ; Belgium
@@ -1072,8 +1072,8 @@ COUNTRY 421, 852, sk_collate_852, yn_an, DMY, "E", "U", "R", 0, 0, " ", ",", "."
 COUNTRY 421, 858, sk_collate_858, yn_an, DMY, 0D5h,    0, 0, 0, 0, " ", ",", ".", ":", 3, 2, _24
 
 ; ------------------------------------------------------------------------------
-; Middle East - Country Code 785
-; *** temporary - may be removed and split into actual countries in the future
+; Middle East / Arabic - Country Code 785
+; Note that there are country specifc codes currently not included that may be better fit.
 ; ------------------------------------------------------------------------------
 COUNTRY 785, 850, xx_collate_850, yn_nl,     DMY, 0CFh, 0, 0, 0, 0, ".", ",", "/", ":", 3, 3, _12 ; Na'am / La
 COUNTRY 785, 858, xx_collate_858, yn_nl,     DMY, 0CFh, 0, 0, 0, 0, ".", ",", "/", ":", 3, 3, _12
