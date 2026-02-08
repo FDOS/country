@@ -1,5 +1,5 @@
 # Makefile for DOS NASM Framework
-# Build with: make
+# Build with: gmake
 # Build NLS library: make nls
 # Build all NLS variants: make nls_all
 # Clean with: make clean
@@ -7,15 +7,17 @@
 #============================================================================
 # Tools Configuration
 #============================================================================
-WATCOM = /opt/watcom
-WCC = $(WATCOM)/binl64/wcc
-WLINK = $(WATCOM)/binl64/wlink
+#WATCOM = /opt/watcom
+#WCC = $(WATCOM)/binl64/wcc
+#WLINK = $(WATCOM)/binl64/wlink
+WCC = wcc
+WLINK = wlink
 NASM = nasm
 
 # Watcom environment
-export WATCOM
-export PATH := $(WATCOM)/binl64:$(WATCOM)/binl:$(PATH)
-export INCLUDE := $(WATCOM)/h
+#export WATCOM
+#export PATH := $(WATCOM)/binl64:$(WATCOM)/binl:$(PATH)
+#export INCLUDE := $(WATCOM)/h
 
 #============================================================================
 # Compiler Identifiers (for object file naming)
@@ -48,7 +50,7 @@ WCC_MODEL_l = -ml
 
 # NASM COMPILER names
 COMPILER_wat = WATCOM
-COMPILER_bcc = BCC
+COMPILER_bcc = BORLAND
 COMPILER_gcc = GCC
 COMPILER_msc = MSC
 COMPILER_dmc = DMC
