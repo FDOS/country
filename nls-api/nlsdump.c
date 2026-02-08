@@ -297,7 +297,7 @@ static void print_escaped_string(const char *str) {
 /*============================================================================
  * Print Hex Table (16 bytes per line)
  *============================================================================*/
-static void print_hex_table(const char *name, const nls_byte *data, int size) {
+static void print_hex_table(const char *name, const nls_byte NLS_FAR *data, int size) {
     int i;
     printf("%s=", name);
     for (i = 0; i < size; i++) {
