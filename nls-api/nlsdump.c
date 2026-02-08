@@ -295,6 +295,27 @@ static void print_escaped_string(const char *str) {
 }
 
 /*============================================================================
+ * Print Currency (7-bit ASCII clean)
+ *============================================================================*/
+static void print_currency(const char str[5]) {
+    int ch;
+    int ndx;  /* currency is always 5 bytes, should be 0 padded */
+    for (ndx = 0; ndx < 5; ndx++) {
+        ch = *str;
+        if (ch >= 32 && ch <= 126) {
+            printf("\"%c\"", ch);
+        } else {
+            if (ch)
+                printf("0x%02X", ch & 0xFF);
+            else
+                printf("0");
+        }
+        if (ndx < 4) printf(", ");
+        str++;
+    }
+}
+
+/*============================================================================
  * Print Hex Table (16 bytes per line)
  *============================================================================*/
 static void print_hex_table(const char *name, const nls_byte NLS_FAR *data, int size) {
@@ -305,6 +326,24 @@ static void print_hex_table(const char *name, const nls_byte NLS_FAR *data, int 
             putchar(',');
         }
         printf("%02X", data[i]);
+    }
+    putchar('\n');
+}
+
+/*============================================================================
+ * Print db Table (8 bytes per line)  -- same format as config.asm source
+ *============================================================================*/
+static void print_db_table(const char *name, const nls_byte NLS_FAR *data, int size) {
+    int i;
+    printf("%s=\n", name);
+    for (i = 0; i < size; i++) {
+        if (!(i%8)) { /* start of a new line */
+            if (i > 0) putchar('\n');
+            printf("db ");
+        } else { /* middle of a line */
+            putchar(',');
+        }
+        printf("%3u", data[i]);
     }
     putchar('\n');
 }
@@ -321,11 +360,24 @@ static const char *get_date_format_name(nls_word fmt) {
     }
 }
 
+static const char *get_date_format_name_short(nls_word fmt) {
+    switch (fmt) {
+        case NLS_DATE_USA:    return "MDY";
+        case NLS_DATE_EUROPE: return "DMY";
+        case NLS_DATE_JAPAN:  return "YMD";
+        default:              return "UNK";
+    }
+}
+
 /*============================================================================
  * Print Time Format Name
  *============================================================================*/
 static const char *get_time_format_name(nls_byte fmt) {
     return (fmt & NLS_TIME_24HR) ? "24-hour" : "12-hour";
+}
+
+static const char *get_time_format_name_short(nls_byte fmt) {
+    return (fmt & NLS_TIME_24HR) ? "_24" : "_12";
 }
 
 /*============================================================================
@@ -337,12 +389,15 @@ static void detect_yesno_chars(char *yes_chars, char *no_chars, int max_len) {
     int ch;
     int yes_idx = 0, no_idx = 0;
     nls_word result;
+    
+    memset(yes_chars, 0, max_len);
+    memset(no_chars, 0, max_len);
 
-    for (ch = 1; ch <= 255 && yes_idx < max_len - 1 && no_idx < max_len - 1; ch++) {
+    for (ch = 1; ch <= 255; ch++) {
         result = nls_check_yesno_char((nls_byte)ch, 0);
-        if (result == NLS_YESNO_YES && yes_idx < max_len - 1) {
+        if (result == NLS_YESNO_YES && (yes_idx < max_len - 1)) {
             yes_chars[yes_idx++] = (char)ch;
-        } else if (result == NLS_YESNO_NO && no_idx < max_len - 1) {
+        } else if (result == NLS_YESNO_NO && (no_idx < max_len - 1)) {
             no_chars[no_idx++] = (char)ch;
         }
     }
@@ -414,7 +469,7 @@ static int dump_detailed(nls_word country_id, nls_word code_page) {
         print_escaped_string(basic_info.time_sep);
         printf("\n");
         printf("CURRENCY_SYMBOL=");
-        print_escaped_string(basic_info.currency_symbol);
+        print_currency(basic_info.currency_symbol);
         printf("\n");
         printf("CURRENCY_FORMAT=%u\n", basic_info.currency_format);
         printf("CURRENCY_DIGITS=%u\n", basic_info.currency_digits);
@@ -442,7 +497,7 @@ static int dump_detailed(nls_word country_id, nls_word code_page) {
         print_escaped_string(ext_info.info.time_sep);
         printf("\n");
         printf("CURRENCY_SYMBOL=");
-        print_escaped_string(ext_info.info.currency_symbol);
+        print_currency(ext_info.info.currency_symbol);
         printf("\n");
         printf("CURRENCY_FORMAT=%u\n", ext_info.info.currency_format);
         printf("CURRENCY_DIGITS=%u\n", ext_info.info.currency_digits);
@@ -469,7 +524,7 @@ static int dump_detailed(nls_word country_id, nls_word code_page) {
         printf("ERROR_GET_UPPERCASE_TABLE=%u\n", err);
     } else if (upper_table) {
         printf("UPPERCASE_TABLE_SIZE=%u\n", upper_table->size);
-        print_hex_table("UPPERCASE_TABLE", upper_table->data, 128);
+        print_db_table("UPPERCASE_TABLE", upper_table->data, 128);
     }
 
     /* Lowercase table (DOS 6.2+) */
@@ -478,7 +533,7 @@ static int dump_detailed(nls_word country_id, nls_word code_page) {
         printf("LOWERCASE_TABLE=N/A (error %u)\n", err);
     } else if (lower_table) {
         printf("LOWERCASE_TABLE_SIZE=%u\n", lower_table->size);
-        print_hex_table("LOWERCASE_TABLE", lower_table->data, 256);
+        print_db_table("LOWERCASE_TABLE", lower_table->data, 256);
     }
 
     /* Filename uppercase table */
@@ -487,7 +542,7 @@ static int dump_detailed(nls_word country_id, nls_word code_page) {
         printf("ERROR_GET_FILENAME_UPPER_TABLE=%u\n", err);
     } else if (fn_upper_table) {
         printf("FILENAME_UPPER_TABLE_SIZE=%u\n", fn_upper_table->size);
-        print_hex_table("FILENAME_UPPER_TABLE", fn_upper_table->data, 128);
+        print_db_table("FILENAME_UPPER_TABLE", fn_upper_table->data, 128);
     }
 
     /* Filename terminator table */
@@ -502,7 +557,7 @@ static int dump_detailed(nls_word country_id, nls_word code_page) {
         printf("FILENAME_EXCL_LAST=0x%02X\n", fn_term_table->excl_last);
         printf("FILENAME_NUM_TERMINATORS=%u\n", fn_term_table->num_terminators);
         if (fn_term_table->num_terminators > 0) {
-            print_hex_table("FILENAME_TERMINATORS", fn_term_table->terminators,
+            print_db_table("FILENAME_TERMINATORS", fn_term_table->terminators,
                             fn_term_table->num_terminators);
         }
     }
@@ -513,7 +568,7 @@ static int dump_detailed(nls_word country_id, nls_word code_page) {
         printf("ERROR_GET_COLLATING_TABLE=%u\n", err);
     } else if (collate_table) {
         printf("COLLATING_TABLE_SIZE=%u\n", collate_table->size);
-        print_hex_table("COLLATING_TABLE", collate_table->data, 256);
+        print_db_table("COLLATING_TABLE", collate_table->data, 256);
     }
 
     /* DBCS table */
@@ -555,10 +610,17 @@ static int dump_csv(nls_word country_id, nls_word code_page) {
     NLS_EXT_COUNTRY_INFO ext_info;
     NLS_COUNTRY_INFO basic_info;
     NLS_CODE_PAGE_INFO cp_info;
+    /* NLS_UPPERCASE_TABLE NLS_FAR *upper_table = NULL; */
+    NLS_LOWERCASE_TABLE NLS_FAR *lower_table = NULL;
+    /* NLS_COLLATING_TABLE NLS_FAR *collate_table = NULL; */
+    NLS_DBCS_TABLE NLS_FAR *dbcs_table = NULL;
+    /* NLS_FILENAME_UPPER_TABLE NLS_FAR *fn_upper_table = NULL; */
+    /* NLS_FILENAME_TERM_TABLE NLS_FAR *fn_term_table = NULL; */
     char yes_chars[32], no_chars[32];
     nls_word err;
-    nls_word codepage_to_print;
     nls_word actual_country;
+    nls_word codepage_to_print;
+
 
     /* Get code page info */
     err = nls_get_code_page(&cp_info);
@@ -584,7 +646,7 @@ static int dump_csv(nls_word country_id, nls_word code_page) {
         printf("%u,", actual_country);
         printf("%s,", get_country_name(actual_country));
         printf("%u,", codepage_to_print);
-        print_escaped_string(basic_info.currency_symbol);
+        print_currency(basic_info.currency_symbol);
         printf(",%u,%u,", basic_info.date_format, basic_info.time_format);
         print_escaped_string(yes_chars);
         putchar(',');
@@ -593,16 +655,58 @@ static int dump_csv(nls_word country_id, nls_word code_page) {
     } else {
         detect_yesno_chars(yes_chars, no_chars, sizeof(yes_chars));
 
-        /* Print CSV */
-        printf("%u,", ext_info.country_id);
-        printf("%s,", get_country_name(ext_info.country_id));
-        printf("%u,", ext_info.code_page ? ext_info.code_page : codepage_to_print);
-        print_escaped_string(ext_info.info.currency_symbol);
-        printf(",%u,%u,", ext_info.info.date_format, ext_info.info.time_format);
+        /* Print CSV: country_name,country_id,codepage*,lcase/blank,y,n,date_format code,string,currency_symbol,thousands separator,decimal separator,date separator,time separator, currency_flags,currency_precision,time_format code,string,dbcs_empty/dbcs */
+        /* * mulit-lang codepages currently not split */
+        printf("%s, ", get_country_name(ext_info.country_id));
+        printf("%u, ", ext_info.country_id);
+        printf("%u, ", ext_info.code_page ? ext_info.code_page : codepage_to_print);
+
+        /* Lowercase table (DOS 6.2+) */
+        err = nls_get_lowercase_table(country_id, code_page, &lower_table);
+        if (!err && lower_table && lower_table->size) {
+            printf("lcase(%u), ", lower_table->size);
+        } else {
+            printf("N/A, ");
+        }
         print_escaped_string(yes_chars);
-        putchar(',');
+        printf(", ");
         print_escaped_string(no_chars);
-        putchar('\n');
+
+        printf(", %u=", ext_info.info.date_format);
+        printf("%s, ", get_date_format_name_short(ext_info.info.date_format));
+
+        print_currency(ext_info.info.currency_symbol);
+
+        printf(", \"");
+        print_escaped_string(ext_info.info.thousands_sep);
+        printf("\", \"");
+        print_escaped_string(ext_info.info.decimal_sep);
+        printf("\", \"");
+        print_escaped_string(ext_info.info.date_sep);
+        printf("\", \"");
+        print_escaped_string(ext_info.info.time_sep);
+        printf("\", ");
+
+        printf("%u, ", ext_info.info.currency_format);
+        printf("%u, ", ext_info.info.currency_digits);
+
+        printf("%u=", ext_info.info.time_format);
+        printf("%s, ", get_time_format_name_short(ext_info.info.time_format));
+
+        /* DBCS table */
+        err = nls_get_dbcs_table(country_id, code_page, &dbcs_table);
+        if (err || !dbcs_table) {
+            printf("dbcs_error, ");
+        } else {
+            if (dbcs_table->length)
+                printf("dbcs(%u), ", dbcs_table->length);
+            else
+                printf("dbcs_empty, ");
+        }
+
+        printf("DATA_SEPARATOR=\'");
+        print_escaped_string(ext_info.info.data_sep);
+        printf("\'\n");
     }
 
     return 0;
