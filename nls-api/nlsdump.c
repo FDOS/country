@@ -745,7 +745,7 @@ int main(int argc, char *argv[]) {
 
     /* Parse arguments */
     while (arg_idx < argc) {
-        if (strcmp(argv[arg_idx], "-c") == 0) {
+        if ((strcmp(argv[arg_idx], "-c") == 0) || (strcmp(argv[arg_idx], "-C") == 0)) {
             csv_mode = 1;
             arg_idx++;
         } else if (strcmp(argv[arg_idx], "-h") == 0 ||
