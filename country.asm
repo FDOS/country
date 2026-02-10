@@ -3275,6 +3275,14 @@ YESNO yn_kr_934, 0BFh, 0B9h, 0BEh, 0C6h ; CP934 (Korean Hangul)
 ; Chinese codepage combinations
 YESNO yn_cn_936, 0CAh, 0C7h, 0B2h, 0BBh ; CP936 (Chinese Simplified)
 
+
+; ==============================================================================
+; VERSION BLOCK, FreeDOS extension
+; ==============================================================================
+db 0FFh,"VERSION"
+dw 4
+db '2', 0, '0', 0  ; version: Major, 0, Minor, 0 (ASCIIZ 2-byte strings)
+
 ; ==============================================================================
 ; END OF FILE
 ; ==============================================================================
