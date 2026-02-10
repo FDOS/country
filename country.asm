@@ -736,9 +736,9 @@ COUNTRY_ML 41, 2, 858, it_collate_858, yn_sn, DMY, "F", "r", ".", 0, 0, "'", "."
 ; Czechoslovakia - Country Code 42
 ; [OBSOLETE, see Czech Republic 420 and Slovakia 421]
 ; ------------------------------------------------------------------------------
-OLD_COUNTRY 42, 850, cz_collate_850, yn_an, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24 ; Ano / Ne
-OLD_COUNTRY 42, 852, cz_collate_852, yn_an, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
-OLD_COUNTRY 42, 858, cz_collate_858, yn_an, DMY, "K", "c", 0, 0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 42, 850, cz_collate_850, yn_an, DMY, "K", "C", "s", 0, 0, ".", ",", "-", ":", 2, 2, _24 ; Ano / Ne
+OLD_COUNTRY 42, 852, cz_collate_852, yn_an, DMY, "K", "C", "s", 0, 0, ".", ",", "-", ":", 2, 2, _24
+OLD_COUNTRY 42, 858, cz_collate_858, yn_an, DMY, "K", "C", "s", 0, 0, ".", ",", "-", ":", 2, 2, _24
 
 ; ------------------------------------------------------------------------------
 ; Austria - Country Code 43
