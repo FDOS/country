@@ -107,7 +107,7 @@
 ;   2026: Bulgaria
 ;
 ; Yugoslavia dissolution (1991-1992) successor states:
-;   Slovenia (386), Croatia (384), Bosnia-Herzegovina (387),
+;   Slovenia (386), Croatia (385), Bosnia-Herzegovina (387),
 ;   Serbia (381), North Macedonia (389), Montenegro (382), Kosovo (383)
 ;
 ; ==============================================================================
