@@ -89,8 +89,12 @@
 ;
 ; See Matthias Paul's extensive COUNTRY.SYS documentation file: COUNTRY.LST
 ;
+; Country numeric codes closely correspond to international telephone codes
+; see https://github.com/google/libphonenumber for current country numbers
+; Note: historic ones follow MS-DOS conventions and may no longer exist
+;
 ; Standards used in this file:
-;   - ISO 3166-1: Country codes
+;   - ISO 3166-1: Country codes (2-alpha for comments only)
 ;     https://www.iso.org/iso-3166-country-codes.html
 ;   - ISO 639-1: Language codes
 ;     https://www.loc.gov/standards/iso639-2/php/code_list.php
