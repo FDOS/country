@@ -368,6 +368,32 @@ _12 equ 0       ; 12-hour clock
 _24 equ 1       ; 24-hour clock
 
 ;-------------------------------------------------------------------------------
+; INTERNAL HELPER MACRO: _bytes_len
+;-------------------------------------------------------------------------------
+; given a set of values, returns how many bytes they occupy
+;-------------------------------------------------------------------------------
+%macro _bytes_len 2-*  ; %1 is variable to assign # bytes to, rest are values
+    %assign %%total 0
+
+    %rep %0-1            ; iterate over all args except the first (the result name)
+        %rotate 1        ; bring next value into %1
+
+        ; if a string get how many bytes, otherwise assume numeric is db (1 byte)
+        %ifstr %1
+            %strlen %%n %1
+            %assign %%total %%total + %%n
+       %elifnum %1
+            %assign %%total %%total + 1
+        %else
+            %error bytes_len: argument is neither string nor number
+        %endif
+    %endrep
+
+    %rotate 1            ; restore original %1 (result_name) into %1
+    %1 equ %%total       ; “return” value as an assembly-time constant
+%endmacro
+
+;-------------------------------------------------------------------------------
 ; INTERNAL MACRO: _cnf_data
 ;-------------------------------------------------------------------------------
 ; Generates the country info data structure (subfunction 1 data).
@@ -384,6 +410,14 @@ _24 equ 1       ; 24-hour clock
     dw 0x26                     ; Length of data
 %endif
     dw %1, %2, %3               ; Country ID, Codepage, Date format
+; validate currency is an ASCIIZ string of at most 5 total bytes
+%if %8 != 0
+%warning "Warning: Currency must be ASCIIZ string, use 0 for padding bytes"
+%endif
+_bytes_len len_currency_ %+ %1 %+ _ %+ %2, %4, %5, %6, %7, %8
+%if (len_currency_ %+ %1 %+ _ %+ %2) != 5
+%error "Error: Currency exceeds 4 bytes and \0 terminator! Country:" %1 "Codepage:" %2
+%endif
     db %4, %5, %6, %7, %8       ; Currency symbol (5 bytes)
     db %9, 0, %10, 0            ; Thousands sep, Decimal sep
     db %11, 0, %12, 0           ; Date sep, Time sep
