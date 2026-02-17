@@ -1097,10 +1097,10 @@ COUNTRY SET_ANGLO, 353, 858, en_collate_858, yn_yn, DMY, 0D5h,    0, 0, 0, 0, ",
 ; ------------------------------------------------------------------------------
 ; Iceland - Country Code 354
 ; ------------------------------------------------------------------------------
-COUNTRY SET_NORDIC, 354, 850, is_collate_850, yn_jn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24 ; Ja / Nei
-COUNTRY SET_NORDIC, 354, 858, is_collate_858, yn_jn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
-COUNTRY SET_NORDIC, 354, 861, is_collate_861, yn_jn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
-COUNTRY SET_NORDIC, 354, 865, is_collate_865, yn_jn, DMY, "kr", 0, 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
+COUNTRY SET_NORDIC, 354, 850, is_collate_850, yn_jn, DMY, "k", "r", 0, 0, 0, ".", ",", ".", ":", 3, 0, _24 ; Ja / Nei
+COUNTRY SET_NORDIC, 354, 858, is_collate_858, yn_jn, DMY, "k", "r", 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
+COUNTRY SET_NORDIC, 354, 861, is_collate_861, yn_jn, DMY, "k", "r", 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
+COUNTRY SET_NORDIC, 354, 865, is_collate_865, yn_jn, DMY, "k", "r", 0, 0, 0, ".", ",", ".", ":", 3, 0, _24
 
 ; ------------------------------------------------------------------------------
 ; Albania - Country Code 355
