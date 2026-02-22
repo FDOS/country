@@ -1637,7 +1637,85 @@ def get_char_name(byte_value: int, codepage_number: int) -> str:
         return f"UNDEFINED ({byte_value:#04x})"
 
 
-def generate_html_file(entry: CountryEntry, output_dir: str) -> str:
+def _glyph_to_html_entity(glyph: str) -> str:
+    """
+    Convert a glyph character to an HTML entity for safe rendering.
+    
+    Args:
+        glyph: Single character glyph
+    
+    Returns:
+        HTML entity string (numeric or named)
+    """
+    # Map common control character glyphs to HTML entities
+    entity_map = {
+        '␀': '&#9216;',  # NULL symbol
+        '☺': '&#9786;',  # WHITE SMILING FACE
+        '☻': '&#9787;',  # BLACK SMILING FACE
+        '♥': '&hearts;',  # BLACK HEART SUIT
+        '♦': '&diams;',  # BLACK DIAMOND SUIT
+        '♣': '&clubs;',  # BLACK CLUB SUIT
+        '♠': '&spades;',  # BLACK SPADE SUIT
+        '•': '&bull;',  # BULLET
+        '◘': '&#9688;',  # INVERSE BULLET
+        '○': '&#9675;',  # WHITE CIRCLE
+        '◙': '&#9689;',  # INVERSE WHITE CIRCLE
+        '♂': '&#9794;',  # MALE SIGN
+        '♀': '&#9792;',  # FEMALE SIGN
+        '♪': '&#9834;',  # EIGHTH NOTE
+        '♫': '&#9835;',  # BEAMED EIGHTH NOTES
+        '☼': '&#9788;',  # WHITE SUN WITH RAYS
+        '►': '&#9658;',  # BLACK RIGHT-POINTING POINTER
+        '◄': '&#9668;',  # BLACK LEFT-POINTING POINTER
+        '↕': '&#8597;',  # UP DOWN ARROW
+        '‼': '&#8252;',  # DOUBLE EXCLAMATION MARK
+        '¶': '&para;',  # PILCROW SIGN
+        '§': '&sect;',  # SECTION SIGN
+        '▬': '&#9644;',  # BLACK RECTANGLE
+        '↨': '&#8616;',  # UP DOWN ARROW WITH BASE
+        '↑': '&uarr;',  # UPWARDS ARROW
+        '↓': '&darr;',  # DOWNWARDS ARROW
+        '→': '&rarr;',  # RIGHTWARDS ARROW
+        '←': '&larr;',  # LEFTWARDS ARROW
+        '∟': '&#8735;',  # RIGHT ANGLE
+        '↔': '&harr;',  # LEFT RIGHT ARROW
+        '▲': '&#9650;',  # BLACK UP-POINTING TRIANGLE
+        '▼': '&#9660;',  # BLACK DOWN-POINTING TRIANGLE
+        '␡': '&#9249;',  # DELETE symbol
+    }
+    return entity_map.get(glyph, html.escape(glyph))
+
+
+def _char_to_html_entity(char: str) -> str:
+    """
+    Convert a character to an HTML entity for safe rendering.
+    
+    Uses numeric HTML entities for non-ASCII characters.
+    
+    Args:
+        char: Single character
+    
+    Returns:
+        HTML entity string or escaped character
+    """
+    if not char:
+        return ''
+    
+    code_point = ord(char)
+    
+    # ASCII printable characters (except special HTML chars) can be used directly
+    if 0x20 <= code_point < 0x7F and char not in '<>&"\'':
+        return char
+    
+    # Use HTML escaping for special HTML characters
+    if char in '<>&"\'':
+        return html.escape(char)
+    
+    # Use numeric entities for everything else
+    return f'&#{code_point};'
+
+
+def generate_html_file(entry: CountryEntry, output_dir: str) -> Tuple[int, str, int, str]:
     """
     Generate an HTML file for a country/codepage entry.
     
@@ -1646,7 +1724,7 @@ def generate_html_file(entry: CountryEntry, output_dir: str) -> str:
         output_dir: Directory to write HTML file to
     
     Returns:
-        Path to the generated HTML file
+        Tuple of (country_code, country_name, codepage, filename) for index generation
     """
     country_code = entry.country
     codepage = entry.codepage
@@ -1693,7 +1771,7 @@ def generate_html_file(entry: CountryEntry, output_dir: str) -> str:
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(html_content)
     
-    return filepath
+    return (country_code, country_name, codepage, filename)
 
 
 def _build_html(country_code: int, country_name: str, iso_code: str,
@@ -1798,13 +1876,13 @@ h1 {
 }
 
 .summary-table td {
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'unscii', 'Uni VGA', 'Perfect DOS VGA 437', 'Consolas', 'Courier New', monospace;
 }
 
 .codepage-grid {
     border-collapse: collapse;
     margin: 1em 0;
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'unscii', 'Uni VGA', 'Perfect DOS VGA 437', 'Consolas', 'Courier New', monospace;
     font-size: 14px;
 }
 
@@ -1848,7 +1926,7 @@ h1 {
 .char-table {
     border-collapse: collapse;
     margin: 1em 0;
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'unscii', 'Uni VGA', 'Perfect DOS VGA 437', 'Consolas', 'Courier New', monospace;
 }
 
 .char-table th,
@@ -1886,7 +1964,7 @@ h1 {
     gap: 1px;
     background: var(--table-border);
     border: 1px solid var(--table-border);
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: 'unscii', 'Uni VGA', 'Perfect DOS VGA 437', 'Consolas', 'Courier New', monospace;
     font-size: 13px;
     margin: 1em 0;
 }
@@ -2021,42 +2099,20 @@ document.addEventListener('DOMContentLoaded', function() {
         parts.append(f'<div class="row-header">{row:X}_</div>')
         for col in range(16):
             byte_val = row * 16 + col
+            char_name = get_char_name(byte_val, codepage)
+            tooltip = f"Dec: {byte_val}, Hex: 0x{byte_val:02X}, Name: {char_name}"
             if byte_val < 0x20:
                 glyph = get_control_char_glyph(byte_val)
-                parts.append(f'<div class="control-char" title="{html.escape(get_char_name(byte_val, codepage))}">{html.escape(glyph)}</div>')
+                glyph_html = _glyph_to_html_entity(glyph)
+                parts.append(f'<div class="control-char" title="{html.escape(tooltip)}">{glyph_html}</div>')
             elif byte_val == 0x7F:
-                parts.append(f'<div class="control-char" title="DELETE">␡</div>')
+                parts.append(f'<div class="control-char" title="{html.escape(tooltip)}">&#9249;</div>')
             else:
                 char = codepage_byte_to_unicode(byte_val, codepage)
-                char_name = get_char_name(byte_val, codepage)
-                parts.append(f'<div class="glyph" title="{html.escape(char_name)}">{html.escape(char)}</div>')
+                char_html = _char_to_html_entity(char)
+                parts.append(f'<div class="glyph" title="{html.escape(tooltip)}">{char_html}</div>')
     
     parts.append('</div>')
-    parts.append('</div>')
-
-    # Detailed codepage table
-    parts.append('<div class="section">')
-    parts.append('<h2>Codepage Character Details</h2>')
-    parts.append('<table class="codepage-grid">')
-    parts.append('<tr><th>Dec</th><th>Hex</th><th>Glyph</th><th>Character Name</th></tr>')
-    
-    for byte_val in range(256):
-        if byte_val < 0x20:
-            glyph = get_control_char_glyph(byte_val)
-            glyph_class = 'control-char'
-        elif byte_val == 0x7F:
-            glyph = '␡'
-            glyph_class = 'control-char'
-        else:
-            glyph = codepage_byte_to_unicode(byte_val, codepage)
-            glyph_class = 'glyph'
-        
-        char_name = get_char_name(byte_val, codepage)
-        parts.append(f'<tr><td>{byte_val}</td><td>{byte_val:02X}</td>'
-                    f'<td class="{glyph_class}">{html.escape(glyph)}</td>'
-                    f'<td class="char-name">{html.escape(char_name)}</td></tr>')
-    
-    parts.append('</table>')
     parts.append('</div>')
 
     # Collation order table
@@ -2076,17 +2132,19 @@ document.addEventListener('DOMContentLoaded', function() {
         for byte_val, weight in collation_order:
             if byte_val < 0x20:
                 glyph = get_control_char_glyph(byte_val)
+                glyph_html = _glyph_to_html_entity(glyph)
                 glyph_class = 'control-char'
             elif byte_val == 0x7F:
-                glyph = '␡'
+                glyph_html = '&#9249;'
                 glyph_class = 'control-char'
             else:
                 glyph = codepage_byte_to_unicode(byte_val, codepage)
+                glyph_html = _char_to_html_entity(glyph)
                 glyph_class = 'glyph'
             
             char_name = get_char_name(byte_val, codepage)
             parts.append(f'<tr><td>{weight}</td><td>{byte_val}</td><td>{byte_val:02X}</td>'
-                        f'<td class="{glyph_class}">{html.escape(glyph)}</td>'
+                        f'<td class="{glyph_class}">{glyph_html}</td>'
                         f'<td class="char-name">{html.escape(char_name)}</td></tr>')
         
         parts.append('</table>')
@@ -2109,12 +2167,14 @@ document.addEventListener('DOMContentLoaded', function() {
             
             # Only show if there's a mapping change
             if lower_byte != upper_byte:
+                lower_html = _char_to_html_entity(lower_char)
+                upper_html = _char_to_html_entity(upper_char)
                 parts.append(f'<tr>'
                             f'<td>{lower_byte}</td>'
                             f'<td>{lower_byte:02X}</td>'
-                            f'<td class="glyph">{html.escape(lower_char)}</td>'
-                            f'<td class="arrow">→</td>'
-                            f'<td class="glyph">{html.escape(upper_char)}</td>'
+                            f'<td class="glyph">{lower_html}</td>'
+                            f'<td class="arrow">&rarr;</td>'
+                            f'<td class="glyph">{upper_html}</td>'
                             f'<td>{upper_byte:02X}</td>'
                             f'<td>{upper_byte}</td>'
                             f'</tr>')
@@ -2137,6 +2197,195 @@ document.addEventListener('DOMContentLoaded', function() {
     return ''.join(parts)
 
 
+def generate_index_html(entries: List[Tuple[int, str, int, str]], output_dir: str) -> str:
+    """
+    Generate an index.html file listing all country/codepage HTML files.
+    
+    Args:
+        entries: List of (country_num, country_name, codepage, filename) tuples
+        output_dir: Directory to write index.html to
+    
+    Returns:
+        Path to the generated index.html file
+    """
+    # Sort entries by country number
+    sorted_entries = sorted(entries, key=lambda x: (x[0], x[2]))
+    
+    # CSS styles (same as individual pages)
+    css = '''
+:root {
+    --bg-color: #f8f9fa;
+    --text-color: #212529;
+    --heading-color: #495057;
+    --table-border: #dee2e6;
+    --table-header-bg: #e9ecef;
+    --table-hover: #f1f3f5;
+    --link-color: #0d6efd;
+}
+
+[data-theme="dark"] {
+    --bg-color: #1a1a2e;
+    --text-color: #e9ecef;
+    --heading-color: #adb5bd;
+    --table-border: #495057;
+    --table-header-bg: #343a40;
+    --table-hover: #2d2d44;
+    --link-color: #6ea8fe;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1 {
+    color: var(--heading-color);
+    border-bottom: 2px solid var(--table-border);
+    padding-bottom: 10px;
+}
+
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 8px 16px;
+    background: var(--table-header-bg);
+    border: 1px solid var(--table-border);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+.theme-toggle:hover {
+    background: var(--table-hover);
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+    background: var(--bg-color);
+}
+
+th, td {
+    border: 1px solid var(--table-border);
+    padding: 10px 15px;
+    text-align: left;
+}
+
+th {
+    background: var(--table-header-bg);
+    font-weight: 600;
+}
+
+tr:hover td {
+    background: var(--table-hover);
+}
+
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+footer {
+    margin-top: 3em;
+    padding-top: 1em;
+    border-top: 1px solid var(--table-border);
+    color: var(--heading-color);
+    font-size: 12px;
+}
+'''
+
+    # JavaScript for theme toggle
+    js = '''
+function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateToggleButton(newTheme);
+}
+
+function updateToggleButton(theme) {
+    const btn = document.getElementById('theme-toggle');
+    btn.textContent = theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateToggleButton(savedTheme);
+});
+'''
+
+    # Build HTML
+    parts = [f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOS Codepage Reference - Index</title>
+    <style>{css}</style>
+</head>
+<body>
+    <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
+    
+    <h1>DOS Codepage Reference</h1>
+    <p>Country and codepage information extracted from COUNTRY.SYS</p>
+    
+    <table>
+        <tr>
+            <th>Country Number</th>
+            <th>Country Name</th>
+            <th>Codepage</th>
+            <th>Link</th>
+        </tr>
+''']
+
+    for country_num, country_name, cp, filename in sorted_entries:
+        parts.append(f'''        <tr>
+            <td>{country_num}</td>
+            <td>{html.escape(country_name)}</td>
+            <td>{cp}</td>
+            <td><a href="{html.escape(filename)}">{html.escape(filename)}</a></td>
+        </tr>
+''')
+
+    parts.append(f'''    </table>
+    
+    <footer>
+        <p>Generated by countrydump.py - DOS COUNTRY.SYS Parser</p>
+        <p>Total entries: {len(sorted_entries)}</p>
+    </footer>
+    
+    <script>{js}</script>
+</body>
+</html>
+''')
+
+    filepath = os.path.join(output_dir, 'index.html')
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(''.join(parts))
+    
+    return filepath
+
+
 def generate_html_files(doc: ParsedCountrySys, output_dir: str,
                        country: Optional[int], codepage: Optional[int]) -> List[str]:
     """
@@ -2156,11 +2405,21 @@ def generate_html_files(doc: ParsedCountrySys, output_dir: str,
     
     entries = filter_entries(doc.entries, country, codepage)
     generated_files = []
+    index_entries = []
     
     for entry in entries:
-        filepath = generate_html_file(entry, output_dir)
+        entry_info = generate_html_file(entry, output_dir)
+        country_num, country_name, cp, filename = entry_info
+        filepath = os.path.join(output_dir, filename)
         generated_files.append(filepath)
+        index_entries.append(entry_info)
         print(f"Generated: {filepath}")
+    
+    # Generate index.html
+    if index_entries:
+        index_path = generate_index_html(index_entries, output_dir)
+        generated_files.append(index_path)
+        print(f"Generated: {index_path}")
     
     return generated_files
 
