@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOS Codepage Reference - Index</title>
+    <style>
+:root {
+    --bg-color: #f8f9fa;
+    --text-color: #212529;
+    --heading-color: #495057;
+    --table-border: #dee2e6;
+    --table-header-bg: #e9ecef;
+    --table-hover: #f1f3f5;
+    --link-color: #0d6efd;
+}
+
+[data-theme="dark"] {
+    --bg-color: #1a1a2e;
+    --text-color: #e9ecef;
+    --heading-color: #adb5bd;
+    --table-border: #495057;
+    --table-header-bg: #343a40;
+    --table-hover: #2d2d44;
+    --link-color: #6ea8fe;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+h1 {
+    color: var(--heading-color);
+    border-bottom: 2px solid var(--table-border);
+    padding-bottom: 10px;
+}
+
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 8px 16px;
+    background: var(--table-header-bg);
+    border: 1px solid var(--table-border);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+.theme-toggle:hover {
+    background: var(--table-hover);
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+    background: var(--bg-color);
+}
+
+th, td {
+    border: 1px solid var(--table-border);
+    padding: 10px 15px;
+    text-align: left;
+}
+
+th {
+    background: var(--table-header-bg);
+    font-weight: 600;
+}
+
+tr:hover td {
+    background: var(--table-hover);
+}
+
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+footer {
+    margin-top: 3em;
+    padding-top: 1em;
+    border-top: 1px solid var(--table-border);
+    color: var(--heading-color);
+    font-size: 12px;
+}
+</style>
+</head>
+<body>
+    <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
+    
+    <h1>DOS Codepage Reference</h1>
+    <p>Country and codepage information extracted from COUNTRY.SYS</p>
+    
+    <table>
+        <tr>
+            <th>Country Number</th>
+            <th>Country Name</th>
+            <th>Codepage</th>
+            <th>Link</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>United States</td>
+            <td>437</td>
+            <td><a href="US001-437.html">US001-437.html</a></td>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>United States</td>
+            <td>850</td>
+            <td><a href="US001-850.html">US001-850.html</a></td>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>United States</td>
+            <td>858</td>
+            <td><a href="US001-858.html">US001-858.html</a></td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>Canada (French)</td>
+            <td>850</td>
+            <td><a href="CA002-850.html">CA002-850.html</a></td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>Canada (French)</td>
+            <td>858</td>
+            <td><a href="CA002-858.html">CA002-858.html</a></td>
+        </tr>
+        <tr>
+            <td>2</td>
+            <td>Canada (French)</td>
+            <td>863</td>
+            <td><a href="CA002-863.html">CA002-863.html</a></td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>Latin America</td>
+            <td>437</td>
+            <td><a href="LA003-437.html">LA003-437.html</a></td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>Latin America</td>
+            <td>850</td>
+            <td><a href="LA003-850.html">LA003-850.html</a></td>
+        </tr>
+        <tr>
+            <td>3</td>
+            <td>Latin America</td>
+            <td>858</td>
+            <td><a href="LA003-858.html">LA003-858.html</a></td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Russia</td>
+            <td>437</td>
+            <td><a href="RU007-437.html">RU007-437.html</a></td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Russia</td>
+            <td>808</td>
+            <td><a href="RU007-808.html">RU007-808.html</a></td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Russia</td>
+            <td>850</td>
+            <td><a href="RU007-850.html">RU007-850.html</a></td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Russia</td>
+            <td>852</td>
+            <td><a href="RU007-852.html">RU007-852.html</a></td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Russia</td>
+            <td>855</td>
+            <td><a href="RU007-855.html">RU007-855.html</a></td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Russia</td>
+            <td>858</td>
+            <td><a href="RU007-858.html">RU007-858.html</a></td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Russia</td>
+            <td>866</td>
+            <td><a href="RU007-866.html">RU007-866.html</a></td>
+        </tr>
+        <tr>
+            <td>7</td>
+            <td>Russia</td>
+            <td>872</td>
+            <td><a href="RU007-872.html">RU007-872.html</a></td>
+        </tr>
+        <tr>
+            <td>27</td>
+            <td>South Africa</td>
+            <td>437</td>
+            <td><a href="ZA027-437.html">ZA027-437.html</a></td>
+        </tr>
+        <tr>
+            <td>27</td>
+            <td>South Africa</td>
+            <td>850</td>
+            <td><a href="ZA027-850.html">ZA027-850.html</a></td>
+        </tr>
+        <tr>
+            <td>27</td>
+            <td>South Africa</td>
+            <td>858</td>
+            <td><a href="ZA027-858.html">ZA027-858.html</a></td>
+        </tr>
+        <tr>
+            <td>30</td>
+            <td>Greece</td>
+            <td>737</td>
+            <td><a href="GR030-737.html">GR030-737.html</a></td>
+        </tr>
+        <tr>
+            <td>30</td>
+            <td>Greece</td>
+            <td>850</td>
+            <td><a href="GR030-850.html">GR030-850.html</a></td>
+        </tr>
+        <tr>
+            <td>30</td>
+            <td>Greece</td>
+            <td>858</td>
+            <td><a href="GR030-858.html">GR030-858.html</a></td>
+        </tr>
+        <tr>
+            <td>30</td>
+            <td>Greece</td>
+            <td>869</td>
+            <td><a href="GR030-869.html">GR030-869.html</a></td>
+        </tr>
+        <tr>
+            <td>31</td>
+            <td>Netherlands</td>
+            <td>437</td>
+            <td><a href="NL031-437.html">NL031-437.html</a></td>
+        </tr>
+        <tr>
+            <td>31</td>
+            <td>Netherlands</td>
+            <td>850</td>
+            <td><a href="NL031-850.html">NL031-850.html</a></td>
+        </tr>
+        <tr>
+            <td>31</td>
+            <td>Netherlands</td>
+            <td>858</td>
+            <td><a href="NL031-858.html">NL031-858.html</a></td>
+        </tr>
+        <tr>
+            <td>32</td>
+            <td>Belgium</td>
+            <td>437</td>
+            <td><a href="BE032-437.html">BE032-437.html</a></td>
+        </tr>
+        <tr>
+            <td>32</td>
+            <td>Belgium</td>
+            <td>850</td>
+            <td><a href="BE032-850.html">BE032-850.html</a></td>
+        </tr>
+        <tr>
+            <td>32</td>
+            <td>Belgium</td>
+            <td>858</td>
+            <td><a href="BE032-858.html">BE032-858.html</a></td>
+        </tr>
+        <tr>
+            <td>33</td>
+            <td>France</td>
+            <td>437</td>
+            <td><a href="FR033-437.html">FR033-437.html</a></td>
+        </tr>
+        <tr>
+            <td>33</td>
+            <td>France</td>
+            <td>850</td>
+            <td><a href="FR033-850.html">FR033-850.html</a></td>
+        </tr>
+        <tr>
+            <td>33</td>
+            <td>France</td>
+            <td>858</td>
+            <td><a href="FR033-858.html">FR033-858.html</a></td>
+        </tr>
+        <tr>
+            <td>34</td>
+            <td>Spain</td>
+            <td>437</td>
+            <td><a href="ES034-437.html">ES034-437.html</a></td>
+        </tr>
+        <tr>
+            <td>34</td>
+            <td>Spain</td>
+            <td>850</td>
+            <td><a href="ES034-850.html">ES034-850.html</a></td>
+        </tr>
+        <tr>
+            <td>34</td>
+            <td>Spain</td>
+            <td>858</td>
+            <td><a href="ES034-858.html">ES034-858.html</a></td>
+        </tr>
+        <tr>
+            <td>36</td>
+            <td>Hungary</td>
+            <td>850</td>
+            <td><a href="HU036-850.html">HU036-850.html</a></td>
+        </tr>
+        <tr>
+            <td>36</td>
+            <td>Hungary</td>
+            <td>852</td>
+            <td><a href="HU036-852.html">HU036-852.html</a></td>
+        </tr>
+        <tr>
+            <td>36</td>
+            <td>Hungary</td>
+            <td>858</td>
+            <td><a href="HU036-858.html">HU036-858.html</a></td>
+        </tr>
+        <tr>
+            <td>38</td>
+            <td>Yugoslavia</td>
+            <td>850</td>
+            <td><a href="YU038-850.html">YU038-850.html</a></td>
+        </tr>
+        <tr>
+            <td>38</td>
+            <td>Yugoslavia</td>
+            <td>852</td>
+            <td><a href="YU038-852.html">YU038-852.html</a></td>
+        </tr>
+        <tr>
+            <td>38</td>
+            <td>Yugoslavia</td>
+            <td>855</td>
+            <td><a href="YU038-855.html">YU038-855.html</a></td>
+        </tr>
+        <tr>
+            <td>38</td>
+            <td>Yugoslavia</td>
+            <td>858</td>
+            <td><a href="YU038-858.html">YU038-858.html</a></td>
+        </tr>
+        <tr>
+            <td>38</td>
+            <td>Yugoslavia</td>
+            <td>872</td>
+            <td><a href="YU038-872.html">YU038-872.html</a></td>
+        </tr>
+        <tr>
+            <td>39</td>
+            <td>Italy</td>
+            <td>437</td>
+            <td><a href="IT039-437.html">IT039-437.html</a></td>
+        </tr>
+        <tr>
+            <td>39</td>
+            <td>Italy</td>
+            <td>850</td>
+            <td><a href="IT039-850.html">IT039-850.html</a></td>
+        </tr>
+        <tr>
+            <td>39</td>
+            <td>Italy</td>
+            <td>858</td>
+            <td><a href="IT039-858.html">IT039-858.html</a></td>
+        </tr>
+        <tr>
+            <td>40</td>
+            <td>Romania</td>
+            <td>850</td>
+            <td><a href="RO040-850.html">RO040-850.html</a></td>
+        </tr>
+        <tr>
+            <td>40</td>
+            <td>Romania</td>
+            <td>852</td>
+            <td><a href="RO040-852.html">RO040-852.html</a></td>
+        </tr>
+        <tr>
+            <td>40</td>
+            <td>Romania</td>
+            <td>858</td>
+            <td><a href="RO040-858.html">RO040-858.html</a></td>
+        </tr>
+        <tr>
+            <td>41</td>
+            <td>Switzerland</td>
+            <td>437</td>
+            <td><a href="CH041-437.html">CH041-437.html</a></td>
+        </tr>
+        <tr>
+            <td>41</td>
+            <td>Switzerland</td>
+            <td>850</td>
+            <td><a href="CH041-850.html">CH041-850.html</a></td>
+        </tr>
+        <tr>
+            <td>41</td>
+            <td>Switzerland</td>
+            <td>858</td>
+            <td><a href="CH041-858.html">CH041-858.html</a></td>
+        </tr>
+        <tr>
+            <td>42</td>
+            <td>Czechoslovakia</td>
+            <td>850</td>
+            <td><a href="CZ042-850.html">CZ042-850.html</a></td>
+        </tr>
+        <tr>
+            <td>42</td>
+            <td>Czechoslovakia</td>
+            <td>852</td>
+            <td><a href="CZ042-852.html">CZ042-852.html</a></td>
+        </tr>
+        <tr>
+            <td>42</td>
+            <td>Czechoslovakia</td>
+            <td>858</td>
+            <td><a href="CZ042-858.html">CZ042-858.html</a></td>
+        </tr>
+        <tr>
+            <td>43</td>
+            <td>Austria</td>
+            <td>437</td>
+            <td><a href="AT043-437.html">AT043-437.html</a></td>
+        </tr>
+        <tr>
+            <td>43</td>
+            <td>Austria</td>
+            <td>850</td>
+            <td><a href="AT043-850.html">AT043-850.html</a></td>
+        </tr>
+        <tr>
+            <td>43</td>
+            <td>Austria</td>
+            <td>858</td>
+            <td><a href="AT043-858.html">AT043-858.html</a></td>
+        </tr>
+        <tr>
+            <td>44</td>
+            <td>United Kingdom</td>
+            <td>437</td>
+            <td><a href="GB044-437.html">GB044-437.html</a></td>
+        </tr>
+        <tr>
+            <td>44</td>
+            <td>United Kingdom</td>
+            <td>850</td>
+            <td><a href="GB044-850.html">GB044-850.html</a></td>
+        </tr>
+        <tr>
+            <td>44</td>
+            <td>United Kingdom</td>
+            <td>858</td>
+            <td><a href="GB044-858.html">GB044-858.html</a></td>
+        </tr>
+        <tr>
+            <td>45</td>
+            <td>Denmark</td>
+            <td>850</td>
+            <td><a href="DK045-850.html">DK045-850.html</a></td>
+        </tr>
+        <tr>
+            <td>45</td>
+            <td>Denmark</td>
+            <td>858</td>
+            <td><a href="DK045-858.html">DK045-858.html</a></td>
+        </tr>
+        <tr>
+            <td>45</td>
+            <td>Denmark</td>
+            <td>865</td>
+            <td><a href="DK045-865.html">DK045-865.html</a></td>
+        </tr>
+        <tr>
+            <td>46</td>
+            <td>Sweden</td>
+            <td>437</td>
+            <td><a href="SE046-437.html">SE046-437.html</a></td>
+        </tr>
+        <tr>
+            <td>46</td>
+            <td>Sweden</td>
+            <td>850</td>
+            <td><a href="SE046-850.html">SE046-850.html</a></td>
+        </tr>
+        <tr>
+            <td>46</td>
+            <td>Sweden</td>
+            <td>858</td>
+            <td><a href="SE046-858.html">SE046-858.html</a></td>
+        </tr>
+        <tr>
+            <td>46</td>
+            <td>Sweden</td>
+            <td>865</td>
+            <td><a href="SE046-865.html">SE046-865.html</a></td>
+        </tr>
+        <tr>
+            <td>47</td>
+            <td>Norway</td>
+            <td>850</td>
+            <td><a href="NO047-850.html">NO047-850.html</a></td>
+        </tr>
+        <tr>
+            <td>47</td>
+            <td>Norway</td>
+            <td>858</td>
+            <td><a href="NO047-858.html">NO047-858.html</a></td>
+        </tr>
+        <tr>
+            <td>47</td>
+            <td>Norway</td>
+            <td>865</td>
+            <td><a href="NO047-865.html">NO047-865.html</a></td>
+        </tr>
+        <tr>
+            <td>48</td>
+            <td>Poland</td>
+            <td>850</td>
+            <td><a href="PL048-850.html">PL048-850.html</a></td>
+        </tr>
+        <tr>
+            <td>48</td>
+            <td>Poland</td>
+            <td>852</td>
+            <td><a href="PL048-852.html">PL048-852.html</a></td>
+        </tr>
+        <tr>
+            <td>48</td>
+            <td>Poland</td>
+            <td>858</td>
+            <td><a href="PL048-858.html">PL048-858.html</a></td>
+        </tr>
+        <tr>
+            <td>49</td>
+            <td>Germany</td>
+            <td>437</td>
+            <td><a href="DE049-437.html">DE049-437.html</a></td>
+        </tr>
+        <tr>
+            <td>49</td>
+            <td>Germany</td>
+            <td>850</td>
+            <td><a href="DE049-850.html">DE049-850.html</a></td>
+        </tr>
+        <tr>
+            <td>49</td>
+            <td>Germany</td>
+            <td>858</td>
+            <td><a href="DE049-858.html">DE049-858.html</a></td>
+        </tr>
+        <tr>
+            <td>52</td>
+            <td>Mexico</td>
+            <td>437</td>
+            <td><a href="MX052-437.html">MX052-437.html</a></td>
+        </tr>
+        <tr>
+            <td>52</td>
+            <td>Mexico</td>
+            <td>850</td>
+            <td><a href="MX052-850.html">MX052-850.html</a></td>
+        </tr>
+        <tr>
+            <td>52</td>
+            <td>Mexico</td>
+            <td>858</td>
+            <td><a href="MX052-858.html">MX052-858.html</a></td>
+        </tr>
+        <tr>
+            <td>54</td>
+            <td>Argentina</td>
+            <td>437</td>
+            <td><a href="AR054-437.html">AR054-437.html</a></td>
+        </tr>
+        <tr>
+            <td>54</td>
+            <td>Argentina</td>
+            <td>850</td>
+            <td><a href="AR054-850.html">AR054-850.html</a></td>
+        </tr>
+        <tr>
+            <td>54</td>
+            <td>Argentina</td>
+            <td>858</td>
+            <td><a href="AR054-858.html">AR054-858.html</a></td>
+        </tr>
+        <tr>
+            <td>55</td>
+            <td>Brazil</td>
+            <td>437</td>
+            <td><a href="BR055-437.html">BR055-437.html</a></td>
+        </tr>
+        <tr>
+            <td>55</td>
+            <td>Brazil</td>
+            <td>850</td>
+            <td><a href="BR055-850.html">BR055-850.html</a></td>
+        </tr>
+        <tr>
+            <td>55</td>
+            <td>Brazil</td>
+            <td>858</td>
+            <td><a href="BR055-858.html">BR055-858.html</a></td>
+        </tr>
+        <tr>
+            <td>60</td>
+            <td>Malaysia</td>
+            <td>437</td>
+            <td><a href="MY060-437.html">MY060-437.html</a></td>
+        </tr>
+        <tr>
+            <td>61</td>
+            <td>Australia</td>
+            <td>437</td>
+            <td><a href="AU061-437.html">AU061-437.html</a></td>
+        </tr>
+        <tr>
+            <td>61</td>
+            <td>Australia</td>
+            <td>850</td>
+            <td><a href="AU061-850.html">AU061-850.html</a></td>
+        </tr>
+        <tr>
+            <td>61</td>
+            <td>Australia</td>
+            <td>858</td>
+            <td><a href="AU061-858.html">AU061-858.html</a></td>
+        </tr>
+        <tr>
+            <td>62</td>
+            <td>Indonesia</td>
+            <td>437</td>
+            <td><a href="ID062-437.html">ID062-437.html</a></td>
+        </tr>
+        <tr>
+            <td>62</td>
+            <td>Indonesia</td>
+            <td>850</td>
+            <td><a href="ID062-850.html">ID062-850.html</a></td>
+        </tr>
+        <tr>
+            <td>63</td>
+            <td>Philippines</td>
+            <td>437</td>
+            <td><a href="PH063-437.html">PH063-437.html</a></td>
+        </tr>
+        <tr>
+            <td>63</td>
+            <td>Philippines</td>
+            <td>850</td>
+            <td><a href="PH063-850.html">PH063-850.html</a></td>
+        </tr>
+        <tr>
+            <td>64</td>
+            <td>New Zealand</td>
+            <td>437</td>
+            <td><a href="NZ064-437.html">NZ064-437.html</a></td>
+        </tr>
+        <tr>
+            <td>64</td>
+            <td>New Zealand</td>
+            <td>850</td>
+            <td><a href="NZ064-850.html">NZ064-850.html</a></td>
+        </tr>
+        <tr>
+            <td>64</td>
+            <td>New Zealand</td>
+            <td>858</td>
+            <td><a href="NZ064-858.html">NZ064-858.html</a></td>
+        </tr>
+        <tr>
+            <td>65</td>
+            <td>Singapore</td>
+            <td>437</td>
+            <td><a href="SG065-437.html">SG065-437.html</a></td>
+        </tr>
+        <tr>
+            <td>66</td>
+            <td>Thailand</td>
+            <td>437</td>
+            <td><a href="TH066-437.html">TH066-437.html</a></td>
+        </tr>
+        <tr>
+            <td>66</td>
+            <td>Thailand</td>
+            <td>850</td>
+            <td><a href="TH066-850.html">TH066-850.html</a></td>
+        </tr>
+        <tr>
+            <td>66</td>
+            <td>Thailand</td>
+            <td>874</td>
+            <td><a href="TH066-874.html">TH066-874.html</a></td>
+        </tr>
+        <tr>
+            <td>81</td>
+            <td>Japan</td>
+            <td>437</td>
+            <td><a href="JP081-437.html">JP081-437.html</a></td>
+        </tr>
+        <tr>
+            <td>81</td>
+            <td>Japan</td>
+            <td>932</td>
+            <td><a href="JP081-932.html">JP081-932.html</a></td>
+        </tr>
+        <tr>
+            <td>82</td>
+            <td>South Korea</td>
+            <td>437</td>
+            <td><a href="KR082-437.html">KR082-437.html</a></td>
+        </tr>
+        <tr>
+            <td>82</td>
+            <td>South Korea</td>
+            <td>934</td>
+            <td><a href="KR082-934.html">KR082-934.html</a></td>
+        </tr>
+        <tr>
+            <td>84</td>
+            <td>Vietnam</td>
+            <td>437</td>
+            <td><a href="VN084-437.html">VN084-437.html</a></td>
+        </tr>
+        <tr>
+            <td>84</td>
+            <td>Vietnam</td>
+            <td>850</td>
+            <td><a href="VN084-850.html">VN084-850.html</a></td>
+        </tr>
+        <tr>
+            <td>84</td>
+            <td>Vietnam</td>
+            <td>1258</td>
+            <td><a href="VN084-1258.html">VN084-1258.html</a></td>
+        </tr>
+        <tr>
+            <td>86</td>
+            <td>China (PRC)</td>
+            <td>437</td>
+            <td><a href="CN086-437.html">CN086-437.html</a></td>
+        </tr>
+        <tr>
+            <td>86</td>
+            <td>China (PRC)</td>
+            <td>936</td>
+            <td><a href="CN086-936.html">CN086-936.html</a></td>
+        </tr>
+        <tr>
+            <td>90</td>
+            <td>Turkey</td>
+            <td>850</td>
+            <td><a href="TR090-850.html">TR090-850.html</a></td>
+        </tr>
+        <tr>
+            <td>90</td>
+            <td>Turkey</td>
+            <td>857</td>
+            <td><a href="TR090-857.html">TR090-857.html</a></td>
+        </tr>
+        <tr>
+            <td>90</td>
+            <td>Turkey</td>
+            <td>858</td>
+            <td><a href="TR090-858.html">TR090-858.html</a></td>
+        </tr>
+        <tr>
+            <td>91</td>
+            <td>India</td>
+            <td>437</td>
+            <td><a href="IN091-437.html">IN091-437.html</a></td>
+        </tr>
+        <tr>
+            <td>351</td>
+            <td>Portugal</td>
+            <td>850</td>
+            <td><a href="PT351-850.html">PT351-850.html</a></td>
+        </tr>
+        <tr>
+            <td>351</td>
+            <td>Portugal</td>
+            <td>858</td>
+            <td><a href="PT351-858.html">PT351-858.html</a></td>
+        </tr>
+        <tr>
+            <td>351</td>
+            <td>Portugal</td>
+            <td>860</td>
+            <td><a href="PT351-860.html">PT351-860.html</a></td>
+        </tr>
+        <tr>
+            <td>352</td>
+            <td>Luxembourg</td>
+            <td>437</td>
+            <td><a href="LU352-437.html">LU352-437.html</a></td>
+        </tr>
+        <tr>
+            <td>352</td>
+            <td>Luxembourg</td>
+            <td>850</td>
+            <td><a href="LU352-850.html">LU352-850.html</a></td>
+        </tr>
+        <tr>
+            <td>352</td>
+            <td>Luxembourg</td>
+            <td>858</td>
+            <td><a href="LU352-858.html">LU352-858.html</a></td>
+        </tr>
+        <tr>
+            <td>353</td>
+            <td>Ireland</td>
+            <td>437</td>
+            <td><a href="IE353-437.html">IE353-437.html</a></td>
+        </tr>
+        <tr>
+            <td>353</td>
+            <td>Ireland</td>
+            <td>850</td>
+            <td><a href="IE353-850.html">IE353-850.html</a></td>
+        </tr>
+        <tr>
+            <td>353</td>
+            <td>Ireland</td>
+            <td>858</td>
+            <td><a href="IE353-858.html">IE353-858.html</a></td>
+        </tr>
+        <tr>
+            <td>354</td>
+            <td>Iceland</td>
+            <td>850</td>
+            <td><a href="IS354-850.html">IS354-850.html</a></td>
+        </tr>
+        <tr>
+            <td>354</td>
+            <td>Iceland</td>
+            <td>858</td>
+            <td><a href="IS354-858.html">IS354-858.html</a></td>
+        </tr>
+        <tr>
+            <td>354</td>
+            <td>Iceland</td>
+            <td>861</td>
+            <td><a href="IS354-861.html">IS354-861.html</a></td>
+        </tr>
+        <tr>
+            <td>354</td>
+            <td>Iceland</td>
+            <td>865</td>
+            <td><a href="IS354-865.html">IS354-865.html</a></td>
+        </tr>
+        <tr>
+            <td>355</td>
+            <td>Albania</td>
+            <td>850</td>
+            <td><a href="AL355-850.html">AL355-850.html</a></td>
+        </tr>
+        <tr>
+            <td>355</td>
+            <td>Albania</td>
+            <td>852</td>
+            <td><a href="AL355-852.html">AL355-852.html</a></td>
+        </tr>
+        <tr>
+            <td>355</td>
+            <td>Albania</td>
+            <td>858</td>
+            <td><a href="AL355-858.html">AL355-858.html</a></td>
+        </tr>
+        <tr>
+            <td>356</td>
+            <td>Malta</td>
+            <td>437</td>
+            <td><a href="MT356-437.html">MT356-437.html</a></td>
+        </tr>
+        <tr>
+            <td>356</td>
+            <td>Malta</td>
+            <td>850</td>
+            <td><a href="MT356-850.html">MT356-850.html</a></td>
+        </tr>
+        <tr>
+            <td>356</td>
+            <td>Malta</td>
+            <td>858</td>
+            <td><a href="MT356-858.html">MT356-858.html</a></td>
+        </tr>
+        <tr>
+            <td>357</td>
+            <td>Cyprus</td>
+            <td>850</td>
+            <td><a href="CY357-850.html">CY357-850.html</a></td>
+        </tr>
+        <tr>
+            <td>357</td>
+            <td>Cyprus</td>
+            <td>858</td>
+            <td><a href="CY357-858.html">CY357-858.html</a></td>
+        </tr>
+        <tr>
+            <td>357</td>
+            <td>Cyprus</td>
+            <td>869</td>
+            <td><a href="CY357-869.html">CY357-869.html</a></td>
+        </tr>
+        <tr>
+            <td>358</td>
+            <td>Finland</td>
+            <td>437</td>
+            <td><a href="FI358-437.html">FI358-437.html</a></td>
+        </tr>
+        <tr>
+            <td>358</td>
+            <td>Finland</td>
+            <td>850</td>
+            <td><a href="FI358-850.html">FI358-850.html</a></td>
+        </tr>
+        <tr>
+            <td>358</td>
+            <td>Finland</td>
+            <td>858</td>
+            <td><a href="FI358-858.html">FI358-858.html</a></td>
+        </tr>
+        <tr>
+            <td>358</td>
+            <td>Finland</td>
+            <td>865</td>
+            <td><a href="FI358-865.html">FI358-865.html</a></td>
+        </tr>
+        <tr>
+            <td>359</td>
+            <td>Bulgaria</td>
+            <td>808</td>
+            <td><a href="BG359-808.html">BG359-808.html</a></td>
+        </tr>
+        <tr>
+            <td>359</td>
+            <td>Bulgaria</td>
+            <td>849</td>
+            <td><a href="BG359-849.html">BG359-849.html</a></td>
+        </tr>
+        <tr>
+            <td>359</td>
+            <td>Bulgaria</td>
+            <td>850</td>
+            <td><a href="BG359-850.html">BG359-850.html</a></td>
+        </tr>
+        <tr>
+            <td>359</td>
+            <td>Bulgaria</td>
+            <td>855</td>
+            <td><a href="BG359-855.html">BG359-855.html</a></td>
+        </tr>
+        <tr>
+            <td>359</td>
+            <td>Bulgaria</td>
+            <td>858</td>
+            <td><a href="BG359-858.html">BG359-858.html</a></td>
+        </tr>
+        <tr>
+            <td>359</td>
+            <td>Bulgaria</td>
+            <td>866</td>
+            <td><a href="BG359-866.html">BG359-866.html</a></td>
+        </tr>
+        <tr>
+            <td>359</td>
+            <td>Bulgaria</td>
+            <td>872</td>
+            <td><a href="BG359-872.html">BG359-872.html</a></td>
+        </tr>
+        <tr>
+            <td>359</td>
+            <td>Bulgaria</td>
+            <td>1131</td>
+            <td><a href="BG359-1131.html">BG359-1131.html</a></td>
+        </tr>
+        <tr>
+            <td>359</td>
+            <td>Bulgaria</td>
+            <td>30033</td>
+            <td><a href="BG359-30033.html">BG359-30033.html</a></td>
+        </tr>
+        <tr>
+            <td>370</td>
+            <td>Lithuania</td>
+            <td>775</td>
+            <td><a href="LT370-775.html">LT370-775.html</a></td>
+        </tr>
+        <tr>
+            <td>370</td>
+            <td>Lithuania</td>
+            <td>850</td>
+            <td><a href="LT370-850.html">LT370-850.html</a></td>
+        </tr>
+        <tr>
+            <td>370</td>
+            <td>Lithuania</td>
+            <td>858</td>
+            <td><a href="LT370-858.html">LT370-858.html</a></td>
+        </tr>
+        <tr>
+            <td>371</td>
+            <td>Latvia</td>
+            <td>775</td>
+            <td><a href="LV371-775.html">LV371-775.html</a></td>
+        </tr>
+        <tr>
+            <td>371</td>
+            <td>Latvia</td>
+            <td>850</td>
+            <td><a href="LV371-850.html">LV371-850.html</a></td>
+        </tr>
+        <tr>
+            <td>371</td>
+            <td>Latvia</td>
+            <td>858</td>
+            <td><a href="LV371-858.html">LV371-858.html</a></td>
+        </tr>
+        <tr>
+            <td>372</td>
+            <td>Estonia</td>
+            <td>775</td>
+            <td><a href="EE372-775.html">EE372-775.html</a></td>
+        </tr>
+        <tr>
+            <td>372</td>
+            <td>Estonia</td>
+            <td>850</td>
+            <td><a href="EE372-850.html">EE372-850.html</a></td>
+        </tr>
+        <tr>
+            <td>372</td>
+            <td>Estonia</td>
+            <td>858</td>
+            <td><a href="EE372-858.html">EE372-858.html</a></td>
+        </tr>
+        <tr>
+            <td>375</td>
+            <td>Belarus</td>
+            <td>849</td>
+            <td><a href="BY375-849.html">BY375-849.html</a></td>
+        </tr>
+        <tr>
+            <td>375</td>
+            <td>Belarus</td>
+            <td>850</td>
+            <td><a href="BY375-850.html">BY375-850.html</a></td>
+        </tr>
+        <tr>
+            <td>375</td>
+            <td>Belarus</td>
+            <td>858</td>
+            <td><a href="BY375-858.html">BY375-858.html</a></td>
+        </tr>
+        <tr>
+            <td>375</td>
+            <td>Belarus</td>
+            <td>1131</td>
+            <td><a href="BY375-1131.html">BY375-1131.html</a></td>
+        </tr>
+        <tr>
+            <td>380</td>
+            <td>Ukraine</td>
+            <td>848</td>
+            <td><a href="UA380-848.html">UA380-848.html</a></td>
+        </tr>
+        <tr>
+            <td>380</td>
+            <td>Ukraine</td>
+            <td>855</td>
+            <td><a href="UA380-855.html">UA380-855.html</a></td>
+        </tr>
+        <tr>
+            <td>380</td>
+            <td>Ukraine</td>
+            <td>866</td>
+            <td><a href="UA380-866.html">UA380-866.html</a></td>
+        </tr>
+        <tr>
+            <td>380</td>
+            <td>Ukraine</td>
+            <td>1125</td>
+            <td><a href="UA380-1125.html">UA380-1125.html</a></td>
+        </tr>
+        <tr>
+            <td>381</td>
+            <td>Serbia</td>
+            <td>850</td>
+            <td><a href="RS381-850.html">RS381-850.html</a></td>
+        </tr>
+        <tr>
+            <td>381</td>
+            <td>Serbia</td>
+            <td>852</td>
+            <td><a href="RS381-852.html">RS381-852.html</a></td>
+        </tr>
+        <tr>
+            <td>381</td>
+            <td>Serbia</td>
+            <td>855</td>
+            <td><a href="RS381-855.html">RS381-855.html</a></td>
+        </tr>
+        <tr>
+            <td>381</td>
+            <td>Serbia</td>
+            <td>858</td>
+            <td><a href="RS381-858.html">RS381-858.html</a></td>
+        </tr>
+        <tr>
+            <td>381</td>
+            <td>Serbia</td>
+            <td>872</td>
+            <td><a href="RS381-872.html">RS381-872.html</a></td>
+        </tr>
+        <tr>
+            <td>382</td>
+            <td>Montenegro</td>
+            <td>850</td>
+            <td><a href="ME382-850.html">ME382-850.html</a></td>
+        </tr>
+        <tr>
+            <td>382</td>
+            <td>Montenegro</td>
+            <td>852</td>
+            <td><a href="ME382-852.html">ME382-852.html</a></td>
+        </tr>
+        <tr>
+            <td>382</td>
+            <td>Montenegro</td>
+            <td>855</td>
+            <td><a href="ME382-855.html">ME382-855.html</a></td>
+        </tr>
+        <tr>
+            <td>382</td>
+            <td>Montenegro</td>
+            <td>858</td>
+            <td><a href="ME382-858.html">ME382-858.html</a></td>
+        </tr>
+        <tr>
+            <td>382</td>
+            <td>Montenegro</td>
+            <td>872</td>
+            <td><a href="ME382-872.html">ME382-872.html</a></td>
+        </tr>
+        <tr>
+            <td>383</td>
+            <td>unknown</td>
+            <td>850</td>
+            <td><a href="XX383-850.html">XX383-850.html</a></td>
+        </tr>
+        <tr>
+            <td>383</td>
+            <td>unknown</td>
+            <td>852</td>
+            <td><a href="XX383-852.html">XX383-852.html</a></td>
+        </tr>
+        <tr>
+            <td>383</td>
+            <td>unknown</td>
+            <td>855</td>
+            <td><a href="XX383-855.html">XX383-855.html</a></td>
+        </tr>
+        <tr>
+            <td>383</td>
+            <td>unknown</td>
+            <td>858</td>
+            <td><a href="XX383-858.html">XX383-858.html</a></td>
+        </tr>
+        <tr>
+            <td>383</td>
+            <td>unknown</td>
+            <td>872</td>
+            <td><a href="XX383-872.html">XX383-872.html</a></td>
+        </tr>
+        <tr>
+            <td>385</td>
+            <td>Croatia</td>
+            <td>850</td>
+            <td><a href="HR385-850.html">HR385-850.html</a></td>
+        </tr>
+        <tr>
+            <td>385</td>
+            <td>Croatia</td>
+            <td>852</td>
+            <td><a href="HR385-852.html">HR385-852.html</a></td>
+        </tr>
+        <tr>
+            <td>385</td>
+            <td>Croatia</td>
+            <td>858</td>
+            <td><a href="HR385-858.html">HR385-858.html</a></td>
+        </tr>
+        <tr>
+            <td>386</td>
+            <td>Slovenia</td>
+            <td>850</td>
+            <td><a href="SI386-850.html">SI386-850.html</a></td>
+        </tr>
+        <tr>
+            <td>386</td>
+            <td>Slovenia</td>
+            <td>852</td>
+            <td><a href="SI386-852.html">SI386-852.html</a></td>
+        </tr>
+        <tr>
+            <td>386</td>
+            <td>Slovenia</td>
+            <td>858</td>
+            <td><a href="SI386-858.html">SI386-858.html</a></td>
+        </tr>
+        <tr>
+            <td>387</td>
+            <td>Bosnia and Herzegovina</td>
+            <td>850</td>
+            <td><a href="BA387-850.html">BA387-850.html</a></td>
+        </tr>
+        <tr>
+            <td>387</td>
+            <td>Bosnia and Herzegovina</td>
+            <td>852</td>
+            <td><a href="BA387-852.html">BA387-852.html</a></td>
+        </tr>
+        <tr>
+            <td>387</td>
+            <td>Bosnia and Herzegovina</td>
+            <td>855</td>
+            <td><a href="BA387-855.html">BA387-855.html</a></td>
+        </tr>
+        <tr>
+            <td>387</td>
+            <td>Bosnia and Herzegovina</td>
+            <td>858</td>
+            <td><a href="BA387-858.html">BA387-858.html</a></td>
+        </tr>
+        <tr>
+            <td>387</td>
+            <td>Bosnia and Herzegovina</td>
+            <td>872</td>
+            <td><a href="BA387-872.html">BA387-872.html</a></td>
+        </tr>
+        <tr>
+            <td>389</td>
+            <td>Macedonia</td>
+            <td>850</td>
+            <td><a href="MK389-850.html">MK389-850.html</a></td>
+        </tr>
+        <tr>
+            <td>389</td>
+            <td>Macedonia</td>
+            <td>855</td>
+            <td><a href="MK389-855.html">MK389-855.html</a></td>
+        </tr>
+        <tr>
+            <td>389</td>
+            <td>Macedonia</td>
+            <td>858</td>
+            <td><a href="MK389-858.html">MK389-858.html</a></td>
+        </tr>
+        <tr>
+            <td>389</td>
+            <td>Macedonia</td>
+            <td>872</td>
+            <td><a href="MK389-872.html">MK389-872.html</a></td>
+        </tr>
+        <tr>
+            <td>420</td>
+            <td>Czech Republic</td>
+            <td>850</td>
+            <td><a href="CZ420-850.html">CZ420-850.html</a></td>
+        </tr>
+        <tr>
+            <td>420</td>
+            <td>Czech Republic</td>
+            <td>852</td>
+            <td><a href="CZ420-852.html">CZ420-852.html</a></td>
+        </tr>
+        <tr>
+            <td>420</td>
+            <td>Czech Republic</td>
+            <td>858</td>
+            <td><a href="CZ420-858.html">CZ420-858.html</a></td>
+        </tr>
+        <tr>
+            <td>421</td>
+            <td>Slovakia</td>
+            <td>850</td>
+            <td><a href="SK421-850.html">SK421-850.html</a></td>
+        </tr>
+        <tr>
+            <td>421</td>
+            <td>Slovakia</td>
+            <td>852</td>
+            <td><a href="SK421-852.html">SK421-852.html</a></td>
+        </tr>
+        <tr>
+            <td>421</td>
+            <td>Slovakia</td>
+            <td>858</td>
+            <td><a href="SK421-858.html">SK421-858.html</a></td>
+        </tr>
+        <tr>
+            <td>785</td>
+            <td>unknown</td>
+            <td>850</td>
+            <td><a href="XX785-850.html">XX785-850.html</a></td>
+        </tr>
+        <tr>
+            <td>785</td>
+            <td>unknown</td>
+            <td>858</td>
+            <td><a href="XX785-858.html">XX785-858.html</a></td>
+        </tr>
+        <tr>
+            <td>785</td>
+            <td>unknown</td>
+            <td>864</td>
+            <td><a href="XX785-864.html">XX785-864.html</a></td>
+        </tr>
+        <tr>
+            <td>972</td>
+            <td>Israel</td>
+            <td>850</td>
+            <td><a href="IL972-850.html">IL972-850.html</a></td>
+        </tr>
+        <tr>
+            <td>972</td>
+            <td>Israel</td>
+            <td>858</td>
+            <td><a href="IL972-858.html">IL972-858.html</a></td>
+        </tr>
+        <tr>
+            <td>972</td>
+            <td>Israel</td>
+            <td>862</td>
+            <td><a href="IL972-862.html">IL972-862.html</a></td>
+        </tr>
+        <tr>
+            <td>40032</td>
+            <td>Belgium</td>
+            <td>437</td>
+            <td><a href="BE40032-437.html">BE40032-437.html</a></td>
+        </tr>
+        <tr>
+            <td>40032</td>
+            <td>Belgium</td>
+            <td>850</td>
+            <td><a href="BE40032-850.html">BE40032-850.html</a></td>
+        </tr>
+        <tr>
+            <td>40032</td>
+            <td>Belgium</td>
+            <td>858</td>
+            <td><a href="BE40032-858.html">BE40032-858.html</a></td>
+        </tr>
+        <tr>
+            <td>40034</td>
+            <td>Spain</td>
+            <td>437</td>
+            <td><a href="ES40034-437.html">ES40034-437.html</a></td>
+        </tr>
+        <tr>
+            <td>40034</td>
+            <td>Spain</td>
+            <td>850</td>
+            <td><a href="ES40034-850.html">ES40034-850.html</a></td>
+        </tr>
+        <tr>
+            <td>40034</td>
+            <td>Spain</td>
+            <td>858</td>
+            <td><a href="ES40034-858.html">ES40034-858.html</a></td>
+        </tr>
+        <tr>
+            <td>40041</td>
+            <td>Switzerland</td>
+            <td>437</td>
+            <td><a href="CH40041-437.html">CH40041-437.html</a></td>
+        </tr>
+        <tr>
+            <td>40041</td>
+            <td>Switzerland</td>
+            <td>850</td>
+            <td><a href="CH40041-850.html">CH40041-850.html</a></td>
+        </tr>
+        <tr>
+            <td>40041</td>
+            <td>Switzerland</td>
+            <td>858</td>
+            <td><a href="CH40041-858.html">CH40041-858.html</a></td>
+        </tr>
+        <tr>
+            <td>41032</td>
+            <td>Belgium</td>
+            <td>437</td>
+            <td><a href="BE41032-437.html">BE41032-437.html</a></td>
+        </tr>
+        <tr>
+            <td>41032</td>
+            <td>Belgium</td>
+            <td>850</td>
+            <td><a href="BE41032-850.html">BE41032-850.html</a></td>
+        </tr>
+        <tr>
+            <td>41032</td>
+            <td>Belgium</td>
+            <td>858</td>
+            <td><a href="BE41032-858.html">BE41032-858.html</a></td>
+        </tr>
+        <tr>
+            <td>41034</td>
+            <td>Spain</td>
+            <td>437</td>
+            <td><a href="ES41034-437.html">ES41034-437.html</a></td>
+        </tr>
+        <tr>
+            <td>41034</td>
+            <td>Spain</td>
+            <td>850</td>
+            <td><a href="ES41034-850.html">ES41034-850.html</a></td>
+        </tr>
+        <tr>
+            <td>41034</td>
+            <td>Spain</td>
+            <td>858</td>
+            <td><a href="ES41034-858.html">ES41034-858.html</a></td>
+        </tr>
+        <tr>
+            <td>41041</td>
+            <td>Switzerland</td>
+            <td>437</td>
+            <td><a href="CH41041-437.html">CH41041-437.html</a></td>
+        </tr>
+        <tr>
+            <td>41041</td>
+            <td>Switzerland</td>
+            <td>850</td>
+            <td><a href="CH41041-850.html">CH41041-850.html</a></td>
+        </tr>
+        <tr>
+            <td>41041</td>
+            <td>Switzerland</td>
+            <td>858</td>
+            <td><a href="CH41041-858.html">CH41041-858.html</a></td>
+        </tr>
+        <tr>
+            <td>42032</td>
+            <td>Belgium</td>
+            <td>437</td>
+            <td><a href="BE42032-437.html">BE42032-437.html</a></td>
+        </tr>
+        <tr>
+            <td>42032</td>
+            <td>Belgium</td>
+            <td>850</td>
+            <td><a href="BE42032-850.html">BE42032-850.html</a></td>
+        </tr>
+        <tr>
+            <td>42032</td>
+            <td>Belgium</td>
+            <td>858</td>
+            <td><a href="BE42032-858.html">BE42032-858.html</a></td>
+        </tr>
+        <tr>
+            <td>42034</td>
+            <td>Spain</td>
+            <td>437</td>
+            <td><a href="ES42034-437.html">ES42034-437.html</a></td>
+        </tr>
+        <tr>
+            <td>42034</td>
+            <td>Spain</td>
+            <td>850</td>
+            <td><a href="ES42034-850.html">ES42034-850.html</a></td>
+        </tr>
+        <tr>
+            <td>42034</td>
+            <td>Spain</td>
+            <td>858</td>
+            <td><a href="ES42034-858.html">ES42034-858.html</a></td>
+        </tr>
+        <tr>
+            <td>42041</td>
+            <td>Switzerland</td>
+            <td>437</td>
+            <td><a href="CH42041-437.html">CH42041-437.html</a></td>
+        </tr>
+        <tr>
+            <td>42041</td>
+            <td>Switzerland</td>
+            <td>850</td>
+            <td><a href="CH42041-850.html">CH42041-850.html</a></td>
+        </tr>
+        <tr>
+            <td>42041</td>
+            <td>Switzerland</td>
+            <td>858</td>
+            <td><a href="CH42041-858.html">CH42041-858.html</a></td>
+        </tr>
+        <tr>
+            <td>43034</td>
+            <td>Spain</td>
+            <td>437</td>
+            <td><a href="ES43034-437.html">ES43034-437.html</a></td>
+        </tr>
+        <tr>
+            <td>43034</td>
+            <td>Spain</td>
+            <td>850</td>
+            <td><a href="ES43034-850.html">ES43034-850.html</a></td>
+        </tr>
+        <tr>
+            <td>43034</td>
+            <td>Spain</td>
+            <td>858</td>
+            <td><a href="ES43034-858.html">ES43034-858.html</a></td>
+        </tr>
+    </table>
+    
+    <footer>
+        <p>Generated by countrydump.py - DOS COUNTRY.SYS Parser</p>
+        <p>Total entries: 239</p>
+    </footer>
+    
+    <script>
+function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateToggleButton(newTheme);
+}
+
+function updateToggleButton(theme) {
+    const btn = document.getElementById('theme-toggle');
+    btn.textContent = theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateToggleButton(savedTheme);
+});
+</script>
+</body>
+</html>
