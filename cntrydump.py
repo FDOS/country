@@ -46,10 +46,13 @@ High-level layout (MS-DOS family):
 from __future__ import annotations
 
 import argparse
+import codecs
+import html
 import json
 import os
 import struct
 import sys
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -175,6 +178,39 @@ COUNTRY_NAMES = {
     973: "Bahrain", 974: "Qatar", 975: "Bhutan", 976: "Mongolia", 977: "Nepal",
 }
 
+# Mapping of country codes to ISO 3166-1 alpha-2 codes
+COUNTRY_ISO_CODES = {
+    1: "US", 2: "CA", 3: "LA", 4: "CA", 7: "RU", 20: "EG", 27: "ZA", 30: "GR",
+    31: "NL", 32: "BE", 33: "FR", 34: "ES", 36: "HU", 38: "YU", 39: "IT", 40: "RO",
+    41: "CH", 42: "CZ", 43: "AT", 44: "GB", 45: "DK", 46: "SE", 47: "NO", 48: "PL",
+    49: "DE", 51: "PE", 52: "MX", 54: "AR", 55: "BR", 56: "CL", 57: "CO", 58: "VE",
+    60: "MY", 61: "AU", 62: "ID", 63: "PH", 64: "NZ", 65: "SG", 66: "TH", 81: "JP",
+    82: "KR", 84: "VN", 86: "CN", 90: "TR", 91: "IN", 92: "PK", 93: "AF", 94: "LK",
+    95: "MM", 98: "IR", 212: "MA", 213: "DZ", 216: "TN", 218: "LY", 220: "GM",
+    221: "SN", 222: "MR", 223: "ML", 224: "GN", 225: "CI", 226: "BF", 227: "NE",
+    228: "TG", 229: "BJ", 230: "MU", 231: "LR", 232: "SL", 233: "GH", 234: "NG",
+    235: "TD", 236: "CF", 237: "CM", 238: "CV", 239: "ST", 240: "GQ", 241: "GA",
+    242: "CG", 243: "CD", 244: "AO", 245: "GW", 246: "DG", 247: "AC", 248: "SC",
+    249: "SD", 250: "RW", 251: "ET", 252: "SO", 253: "DJ", 254: "KE", 255: "TZ",
+    256: "UG", 257: "BI", 258: "MZ", 260: "ZM", 261: "MG", 262: "RE", 263: "ZW",
+    264: "NA", 265: "MW", 266: "LS", 267: "BW", 268: "SZ", 269: "KM", 290: "SH",
+    291: "ER", 297: "AW", 298: "FO", 299: "GL", 350: "GI", 351: "PT", 352: "LU",
+    353: "IE", 354: "IS", 355: "AL", 356: "MT", 357: "CY", 358: "FI", 359: "BG",
+    370: "LT", 371: "LV", 372: "EE", 373: "MD", 374: "AM", 375: "BY", 376: "AD",
+    377: "MC", 378: "SM", 380: "UA", 381: "RS", 382: "ME", 385: "HR", 386: "SI",
+    387: "BA", 389: "MK", 420: "CZ", 421: "SK", 423: "LI", 500: "FK", 501: "BZ",
+    502: "GT", 503: "SV", 504: "HN", 505: "NI", 506: "CR", 507: "PA", 508: "PM",
+    509: "HT", 590: "GP", 591: "BO", 592: "GY", 593: "EC", 594: "GF", 595: "PY",
+    596: "MQ", 597: "SR", 598: "UY", 599: "AN", 670: "TL", 672: "AQ", 673: "BN",
+    674: "NR", 675: "PG", 676: "TO", 677: "SB", 678: "VU", 679: "FJ", 680: "PW",
+    681: "WF", 682: "CK", 683: "NU", 684: "AS", 685: "WS", 686: "KI", 687: "NC",
+    688: "TV", 689: "PF", 690: "TK", 691: "FM", 692: "MH", 850: "KP", 852: "HK",
+    853: "MO", 855: "KH", 856: "LA", 880: "BD", 886: "TW", 960: "MV", 961: "LB",
+    962: "JO", 963: "SY", 964: "IQ", 965: "KW", 966: "SA", 967: "YE", 968: "OM",
+    970: "PS", 971: "AE", 972: "IL", 973: "BH", 974: "QA", 975: "BT", 976: "MN",
+    977: "NP",
+}
+
 # Mapping of codepage numbers to their descriptive names
 CODEPAGE_NAMES = {
     437: "US/OEM", 720: "Arabic", 737: "Greek", 775: "Baltic", 850: "Western European",
@@ -193,6 +229,26 @@ ALLOWED_MAGICS: Dict[int, Tuple[str, ...]] = {
     5: ("FCHAR",), 6: ("COLLATE",), 7: ("DBCS",), 20: ("CCTORC",), 21: ("ARAMODE",),
     35: ("YESNO",),
 }
+
+# Control character display glyphs (CP437 glyphs for 0x00-0x1F)
+CONTROL_CHAR_GLYPHS = [
+    '␀', '☺', '☻', '♥', '♦', '♣', '♠', '•',  # 0x00-0x07
+    '◘', '○', '◙', '♂', '♀', '♪', '♫', '☼',  # 0x08-0x0F
+    '►', '◄', '↕', '‼', '¶', '§', '▬', '↨',  # 0x10-0x17
+    '↑', '↓', '→', '←', '∟', '↔', '▲', '▼',  # 0x18-0x1F
+]
+
+# Control character names
+CONTROL_CHAR_NAMES = [
+    "NULL", "START OF HEADING", "START OF TEXT", "END OF TEXT",
+    "END OF TRANSMISSION", "ENQUIRY", "ACKNOWLEDGE", "BELL",
+    "BACKSPACE", "HORIZONTAL TAB", "LINE FEED", "VERTICAL TAB",
+    "FORM FEED", "CARRIAGE RETURN", "SHIFT OUT", "SHIFT IN",
+    "DATA LINK ESCAPE", "DEVICE CONTROL ONE", "DEVICE CONTROL TWO", "DEVICE CONTROL THREE",
+    "DEVICE CONTROL FOUR", "NEGATIVE ACKNOWLEDGE", "SYNCHRONOUS IDLE", "END OF TRANSMISSION BLOCK",
+    "CANCEL", "END OF MEDIUM", "SUBSTITUTE", "ESCAPE",
+    "FILE SEPARATOR", "GROUP SEPARATOR", "RECORD SEPARATOR", "UNIT SEPARATOR",
+]
 
 
 # ====
@@ -339,6 +395,21 @@ def _country_name(c: int) -> str:
     if c >= 40000:
         c = c % 1000
     return COUNTRY_NAMES.get(c, "unknown")
+
+
+def _country_iso_code(c: int) -> str:
+    """
+    Get the ISO 3166-1 alpha-2 code for a country code.
+
+    Args:
+        c: Country code
+
+    Returns:
+        2-letter ISO code, or "XX" if not found
+    """
+    if c >= 40000:
+        c = c % 1000
+    return COUNTRY_ISO_CODES.get(c, "XX")
 
 
 def _codepage_name(cp: int) -> str:
@@ -1478,6 +1549,623 @@ def print_default(doc: ParsedCountrySys, *, unsorted: bool, no_offsets: bool,
 
 
 # ====
+# HTML Generation
+# ====
+
+def codepage_byte_to_unicode(byte_value: int, codepage_number: int) -> str:
+    """
+    Convert a byte value to its Unicode character using the specified codepage.
+    
+    Args:
+        byte_value: Byte value (0-255)
+        codepage_number: DOS codepage number (e.g., 437, 850)
+    
+    Returns:
+        Unicode character string, or replacement character if conversion fails
+    """
+    # Map DOS codepage numbers to Python codec names
+    codec_map = {
+        437: 'cp437', 720: 'cp720', 737: 'cp737', 775: 'cp775',
+        850: 'cp850', 852: 'cp852', 855: 'cp855', 857: 'cp857',
+        858: 'cp858', 860: 'cp860', 861: 'cp861', 862: 'cp862',
+        863: 'cp863', 864: 'cp864', 865: 'cp865', 866: 'cp866',
+        869: 'cp869', 874: 'cp874', 932: 'cp932', 936: 'cp936',
+        949: 'cp949', 950: 'cp950', 1250: 'cp1250', 1251: 'cp1251',
+        1252: 'cp1252',
+    }
+    
+    codec_name = codec_map.get(codepage_number, 'cp437')
+    
+    try:
+        return bytes([byte_value]).decode(codec_name)
+    except (UnicodeDecodeError, LookupError):
+        # Fallback to CP437 for unknown codepages
+        try:
+            return bytes([byte_value]).decode('cp437')
+        except UnicodeDecodeError:
+            return '\uFFFD'  # Replacement character
+
+
+def get_control_char_glyph(byte_value: int) -> str:
+    """
+    Return a displayable glyph for control characters (0x00-0x1F).
+    
+    Args:
+        byte_value: Byte value (0-31)
+    
+    Returns:
+        Displayable glyph character
+    """
+    if 0 <= byte_value < len(CONTROL_CHAR_GLYPHS):
+        return CONTROL_CHAR_GLYPHS[byte_value]
+    return '·'
+
+
+def get_char_name(byte_value: int, codepage_number: int) -> str:
+    """
+    Return the official Unicode character name for a byte value.
+    
+    Args:
+        byte_value: Byte value (0-255)
+        codepage_number: DOS codepage number
+    
+    Returns:
+        Character name string
+    """
+    # Control characters
+    if byte_value < 0x20:
+        return CONTROL_CHAR_NAMES[byte_value]
+    
+    # Space
+    if byte_value == 0x20:
+        return "SPACE"
+    
+    # DEL
+    if byte_value == 0x7F:
+        return "DELETE"
+    
+    # Get Unicode character
+    char = codepage_byte_to_unicode(byte_value, codepage_number)
+    
+    try:
+        name = unicodedata.name(char)
+        return name
+    except ValueError:
+        # No name available
+        if byte_value < 0x80:
+            return f"ASCII {byte_value:#04x}"
+        return f"UNDEFINED ({byte_value:#04x})"
+
+
+def generate_html_file(entry: CountryEntry, output_dir: str) -> str:
+    """
+    Generate an HTML file for a country/codepage entry.
+    
+    Args:
+        entry: CountryEntry object with parsed data
+        output_dir: Directory to write HTML file to
+    
+    Returns:
+        Path to the generated HTML file
+    """
+    country_code = entry.country
+    codepage = entry.codepage
+    
+    # Get ISO code for filename
+    iso_code = _country_iso_code(country_code)
+    country_name = _country_name(country_code)
+    codepage_name_str = _codepage_name(codepage)
+    
+    # Generate filename: AA###-###.html
+    filename = f"{iso_code}{country_code:03d}-{codepage:03d}.html"
+    filepath = os.path.join(output_dir, filename)
+    
+    # Extract subfunction data
+    ctyinfo_data = None
+    ucase_payload = None
+    collate_payload = None
+    yesno_data = None
+    
+    for sf in entry.subfuncs:
+        if sf.subfunc_id == 1 and sf.decoded:
+            ctyinfo_data = sf.decoded
+        elif sf.subfunc_id == 2 and sf.tagged:
+            ucase_payload = sf.tagged.payload
+        elif sf.subfunc_id == 6 and sf.tagged:
+            collate_payload = sf.tagged.payload
+        elif sf.subfunc_id == 35 and sf.decoded:
+            yesno_data = sf.decoded
+    
+    # Build HTML content
+    html_content = _build_html(
+        country_code=country_code,
+        country_name=country_name,
+        iso_code=iso_code,
+        codepage=codepage,
+        codepage_name=codepage_name_str,
+        ctyinfo=ctyinfo_data,
+        ucase_payload=ucase_payload,
+        collate_payload=collate_payload,
+        yesno=yesno_data
+    )
+    
+    # Write file
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(html_content)
+    
+    return filepath
+
+
+def _build_html(country_code: int, country_name: str, iso_code: str,
+                codepage: int, codepage_name: str,
+                ctyinfo: Optional[Dict[str, Any]],
+                ucase_payload: Optional[bytes],
+                collate_payload: Optional[bytes],
+                yesno: Optional[Dict[str, Any]]) -> str:
+    """
+    Build the complete HTML document content.
+    """
+    title = f"{country_name} (CP{codepage})"
+    
+    # CSS styles
+    css = '''
+:root {
+    --bg-color: #f8f9fa;
+    --text-color: #212529;
+    --heading-color: #495057;
+    --table-border: #dee2e6;
+    --table-header-bg: #e9ecef;
+    --table-hover: #f1f3f5;
+    --code-bg: #e9ecef;
+    --link-color: #0d6efd;
+    --control-char-color: #6c757d;
+    --glyph-color: #212529;
+}
+
+[data-theme="dark"] {
+    --bg-color: #1a1a2e;
+    --text-color: #e9ecef;
+    --heading-color: #adb5bd;
+    --table-border: #495057;
+    --table-header-bg: #343a40;
+    --table-hover: #2d2d44;
+    --code-bg: #343a40;
+    --link-color: #6ea8fe;
+    --control-char-color: #adb5bd;
+    --glyph-color: #f8f9fa;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+h1, h2, h3 {
+    color: var(--heading-color);
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+h1 {
+    border-bottom: 2px solid var(--table-border);
+    padding-bottom: 10px;
+}
+
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 8px 16px;
+    background: var(--table-header-bg);
+    border: 1px solid var(--table-border);
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-color);
+    font-size: 14px;
+}
+
+.theme-toggle:hover {
+    background: var(--table-hover);
+}
+
+.summary-table {
+    border-collapse: collapse;
+    margin: 1em 0;
+    background: var(--bg-color);
+}
+
+.summary-table th,
+.summary-table td {
+    border: 1px solid var(--table-border);
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.summary-table th {
+    background: var(--table-header-bg);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.summary-table td {
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.codepage-grid {
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 14px;
+}
+
+.codepage-grid th,
+.codepage-grid td {
+    border: 1px solid var(--table-border);
+    padding: 4px 8px;
+    text-align: center;
+}
+
+.codepage-grid th {
+    background: var(--table-header-bg);
+    font-weight: 600;
+}
+
+.codepage-grid tr:hover td {
+    background: var(--table-hover);
+}
+
+.codepage-grid .glyph {
+    font-size: 18px;
+    color: var(--glyph-color);
+    min-width: 24px;
+    display: inline-block;
+}
+
+.codepage-grid .control-char {
+    color: var(--control-char-color);
+    font-size: 16px;
+}
+
+.codepage-grid .char-name {
+    font-size: 11px;
+    color: var(--control-char-color);
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.char-table {
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.char-table th,
+.char-table td {
+    border: 1px solid var(--table-border);
+    padding: 6px 10px;
+    text-align: center;
+}
+
+.char-table th {
+    background: var(--table-header-bg);
+    font-weight: 600;
+}
+
+.char-table tr:hover td {
+    background: var(--table-hover);
+}
+
+.ucase-table .arrow {
+    color: var(--control-char-color);
+    padding: 0 8px;
+}
+
+.section {
+    margin: 2em 0;
+    padding: 1em;
+    background: var(--bg-color);
+    border: 1px solid var(--table-border);
+    border-radius: 8px;
+}
+
+.grid-16x16 {
+    display: grid;
+    grid-template-columns: auto repeat(16, 1fr);
+    gap: 1px;
+    background: var(--table-border);
+    border: 1px solid var(--table-border);
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    margin: 1em 0;
+}
+
+.grid-16x16 > div {
+    background: var(--bg-color);
+    padding: 4px;
+    text-align: center;
+    min-width: 40px;
+}
+
+.grid-16x16 .header {
+    background: var(--table-header-bg);
+    font-weight: 600;
+}
+
+.grid-16x16 .glyph {
+    font-size: 16px;
+    color: var(--glyph-color);
+}
+
+.grid-16x16 .control-char {
+    color: var(--control-char-color);
+}
+
+.grid-16x16 .row-header {
+    background: var(--table-header-bg);
+    font-weight: 600;
+}
+
+footer {
+    margin-top: 3em;
+    padding-top: 1em;
+    border-top: 1px solid var(--table-border);
+    color: var(--control-char-color);
+    font-size: 12px;
+}
+'''
+
+    # JavaScript for theme toggle
+    js = '''
+function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateToggleButton(newTheme);
+}
+
+function updateToggleButton(theme) {
+    const btn = document.getElementById('theme-toggle');
+    btn.textContent = theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateToggleButton(savedTheme);
+});
+'''
+
+    # Build HTML
+    parts = [f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{html.escape(title)} - DOS Codepage Reference</title>
+    <style>{css}</style>
+</head>
+<body>
+    <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
+    
+    <h1>{html.escape(title)}</h1>
+    <p>DOS Country Code: {country_code} ({iso_code}) | Codepage: {codepage} ({html.escape(codepage_name)})</p>
+''']
+
+    # Summary section
+    parts.append('<div class="section">')
+    parts.append('<h2>Country Information (CTYINFO)</h2>')
+    
+    if ctyinfo:
+        parts.append('<table class="summary-table">')
+        parts.append('<tr><th>Property</th><th>Value</th></tr>')
+        
+        info_fields = [
+            ('Country ID', ctyinfo.get('country_id', 'N/A')),
+            ('Codepage', ctyinfo.get('codepage', 'N/A')),
+            ('Date Format', f"{ctyinfo.get('date_format', 'N/A')} ({ctyinfo.get('date_format_name', '')})"),
+            ('Time Format', f"{ctyinfo.get('time_format', 'N/A')} ({ctyinfo.get('time_format_name', '')})"),
+            ('Currency Symbol', ctyinfo.get('currency_symbol', 'N/A')),
+            ('Currency Format', ctyinfo.get('currency_format', 'N/A')),
+            ('Currency Decimals', ctyinfo.get('currency_decimals', 'N/A')),
+            ('Thousands Separator', ctyinfo.get('thousands_sep', 'N/A')),
+            ('Decimal Separator', ctyinfo.get('decimal_sep', 'N/A')),
+            ('Date Separator', ctyinfo.get('date_sep', 'N/A')),
+            ('Time Separator', ctyinfo.get('time_sep', 'N/A')),
+            ('Data Separator', ctyinfo.get('data_sep', 'N/A')),
+        ]
+        
+        for label, value in info_fields:
+            parts.append(f'<tr><th>{html.escape(label)}</th><td>{html.escape(str(value))}</td></tr>')
+        
+        parts.append('</table>')
+    else:
+        parts.append('<p><em>No CTYINFO data available</em></p>')
+    
+    # YESNO
+    if yesno:
+        parts.append('<h3>Yes/No Characters (YESNO)</h3>')
+        parts.append('<table class="summary-table">')
+        parts.append(f'<tr><th>Yes</th><td>{html.escape(yesno.get("yes", "N/A"))}</td></tr>')
+        parts.append(f'<tr><th>No</th><td>{html.escape(yesno.get("no", "N/A"))}</td></tr>')
+        parts.append('</table>')
+    
+    parts.append('</div>')
+
+    # Codepage table in codepoint order (16x16 grid)
+    parts.append('<div class="section">')
+    parts.append('<h2>Codepage Character Map (Codepoint Order)</h2>')
+    parts.append('<p>16×16 grid showing all 256 byte values (0x00-0xFF)</p>')
+    
+    parts.append('<div class="grid-16x16">')
+    # Header row
+    parts.append('<div class="header"></div>')
+    for col in range(16):
+        parts.append(f'<div class="header">_{col:X}</div>')
+    
+    # Data rows
+    for row in range(16):
+        parts.append(f'<div class="row-header">{row:X}_</div>')
+        for col in range(16):
+            byte_val = row * 16 + col
+            if byte_val < 0x20:
+                glyph = get_control_char_glyph(byte_val)
+                parts.append(f'<div class="control-char" title="{html.escape(get_char_name(byte_val, codepage))}">{html.escape(glyph)}</div>')
+            elif byte_val == 0x7F:
+                parts.append(f'<div class="control-char" title="DELETE">␡</div>')
+            else:
+                char = codepage_byte_to_unicode(byte_val, codepage)
+                char_name = get_char_name(byte_val, codepage)
+                parts.append(f'<div class="glyph" title="{html.escape(char_name)}">{html.escape(char)}</div>')
+    
+    parts.append('</div>')
+    parts.append('</div>')
+
+    # Detailed codepage table
+    parts.append('<div class="section">')
+    parts.append('<h2>Codepage Character Details</h2>')
+    parts.append('<table class="codepage-grid">')
+    parts.append('<tr><th>Dec</th><th>Hex</th><th>Glyph</th><th>Character Name</th></tr>')
+    
+    for byte_val in range(256):
+        if byte_val < 0x20:
+            glyph = get_control_char_glyph(byte_val)
+            glyph_class = 'control-char'
+        elif byte_val == 0x7F:
+            glyph = '␡'
+            glyph_class = 'control-char'
+        else:
+            glyph = codepage_byte_to_unicode(byte_val, codepage)
+            glyph_class = 'glyph'
+        
+        char_name = get_char_name(byte_val, codepage)
+        parts.append(f'<tr><td>{byte_val}</td><td>{byte_val:02X}</td>'
+                    f'<td class="{glyph_class}">{html.escape(glyph)}</td>'
+                    f'<td class="char-name">{html.escape(char_name)}</td></tr>')
+    
+    parts.append('</table>')
+    parts.append('</div>')
+
+    # Collation order table
+    if collate_payload and len(collate_payload) == 256:
+        parts.append('<div class="section">')
+        parts.append('<h2>Codepage in Collation Order</h2>')
+        parts.append('<p>Characters sorted by their collation weight (sort order)</p>')
+        
+        # Build list of (byte_value, collation_weight)
+        collation_order = [(i, collate_payload[i]) for i in range(256)]
+        # Sort by collation weight, then by byte value for stability
+        collation_order.sort(key=lambda x: (x[1], x[0]))
+        
+        parts.append('<table class="codepage-grid">')
+        parts.append('<tr><th>Weight</th><th>Dec</th><th>Hex</th><th>Glyph</th><th>Character Name</th></tr>')
+        
+        for byte_val, weight in collation_order:
+            if byte_val < 0x20:
+                glyph = get_control_char_glyph(byte_val)
+                glyph_class = 'control-char'
+            elif byte_val == 0x7F:
+                glyph = '␡'
+                glyph_class = 'control-char'
+            else:
+                glyph = codepage_byte_to_unicode(byte_val, codepage)
+                glyph_class = 'glyph'
+            
+            char_name = get_char_name(byte_val, codepage)
+            parts.append(f'<tr><td>{weight}</td><td>{byte_val}</td><td>{byte_val:02X}</td>'
+                        f'<td class="{glyph_class}">{html.escape(glyph)}</td>'
+                        f'<td class="char-name">{html.escape(char_name)}</td></tr>')
+        
+        parts.append('</table>')
+        parts.append('</div>')
+
+    # UCASE mappings table
+    if ucase_payload and len(ucase_payload) >= 128:
+        parts.append('<div class="section">')
+        parts.append('<h2>Uppercase Mappings (UCASE)</h2>')
+        parts.append('<p>Maps characters 0x80-0xFF to their uppercase equivalents</p>')
+        
+        parts.append('<table class="char-table ucase-table">')
+        parts.append('<tr><th>From (Dec)</th><th>From (Hex)</th><th>Lowercase</th>'
+                    '<th></th><th>Uppercase</th><th>To (Hex)</th><th>To (Dec)</th></tr>')
+        
+        for i, upper_byte in enumerate(ucase_payload[:128]):
+            lower_byte = 0x80 + i
+            lower_char = codepage_byte_to_unicode(lower_byte, codepage)
+            upper_char = codepage_byte_to_unicode(upper_byte, codepage)
+            
+            # Only show if there's a mapping change
+            if lower_byte != upper_byte:
+                parts.append(f'<tr>'
+                            f'<td>{lower_byte}</td>'
+                            f'<td>{lower_byte:02X}</td>'
+                            f'<td class="glyph">{html.escape(lower_char)}</td>'
+                            f'<td class="arrow">→</td>'
+                            f'<td class="glyph">{html.escape(upper_char)}</td>'
+                            f'<td>{upper_byte:02X}</td>'
+                            f'<td>{upper_byte}</td>'
+                            f'</tr>')
+        
+        parts.append('</table>')
+        parts.append('</div>')
+
+    # Footer
+    parts.append(f'''
+    <footer>
+        <p>Generated by countrydump.py - DOS COUNTRY.SYS Parser</p>
+        <p>Country: {country_code} ({html.escape(country_name)}) | Codepage: {codepage} ({html.escape(codepage_name)})</p>
+    </footer>
+    
+    <script>{js}</script>
+</body>
+</html>
+''')
+
+    return ''.join(parts)
+
+
+def generate_html_files(doc: ParsedCountrySys, output_dir: str,
+                       country: Optional[int], codepage: Optional[int]) -> List[str]:
+    """
+    Generate HTML files for all (filtered) country/codepage entries.
+    
+    Args:
+        doc: Parsed COUNTRY.SYS data
+        output_dir: Directory to write HTML files to
+        country: Filter by country code (None = no filter)
+        codepage: Filter by codepage (None = no filter)
+    
+    Returns:
+        List of generated file paths
+    """
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+    
+    entries = filter_entries(doc.entries, country, codepage)
+    generated_files = []
+    
+    for entry in entries:
+        filepath = generate_html_file(entry, output_dir)
+        generated_files.append(filepath)
+        print(f"Generated: {filepath}")
+    
+    return generated_files
+
+
+# ====
 # CLI
 # ====
 
@@ -1495,13 +2183,17 @@ def main(argv: Optional[List[str]] = None) -> int:
         description="Parse and compare DOS COUNTRY.SYS files (MS-DOS family format).",
         epilog="By default, entries and subfunctions are sorted for consistent output. "
                "Use --unsorted to preserve original file order. "
-               "Use --compare to diff two COUNTRY.SYS files."
+               "Use --compare to diff two COUNTRY.SYS files. "
+               "Use --html to generate HTML output files."
     )
     ap.add_argument("file", nargs='?', help="Path to COUNTRY.SYS (for single-file display)")
     ap.add_argument("--compare", nargs=2, metavar=("FILE1", "FILE2"),
                     help="Compare two COUNTRY.SYS files")
     ap.add_argument("--summary", action="store_true", help="Print a concise entry list")
     ap.add_argument("--json", action="store_true", help="Emit JSON")
+    ap.add_argument("--html", action="store_true", help="Generate HTML output files")
+    ap.add_argument("--output-dir", default=".", metavar="DIR",
+                    help="Output directory for HTML files (default: current directory)")
     ap.add_argument("--unsorted", action="store_true",
                     help="Preserve original file order (default: sort by country/codepage and subfunction ID)")
     ap.add_argument("--no-offsets", action="store_true", help="Suppress offsets in output")
@@ -1571,6 +2263,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             print(f"Error: {e}", file=sys.stderr)
             return 1
 
+        # HTML output mode
+        if args.html:
+            generated = generate_html_files(doc, args.output_dir, args.country, args.codepage)
+            print(f"\nGenerated {len(generated)} HTML file(s) in {args.output_dir}")
+            return 0
+
         # Output in requested format
         if args.json:
             print(json.dumps(to_jsonable(doc), indent=2))
@@ -1578,10 +2276,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         if args.summary:
             print_summary(doc, unsorted=args.unsorted, no_offsets=args.no_offsets,
-                    country=args.country, codepage=args.codepage)
+                          country=args.country, codepage=args.codepage)
         else:
             print_default(doc, unsorted=args.unsorted, no_offsets=args.no_offsets,
-                    country=args.country, codepage=args.codepage)
+                          country=args.country, codepage=args.codepage)
 
         # Copyright / Version detection and display
         copyright_info = find_copyright_and_version(buf)
