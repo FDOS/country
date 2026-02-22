@@ -1715,6 +1715,118 @@ def _char_to_html_entity(char: str) -> str:
     return f'&#{code_point};'
 
 
+def _is_invisible_char(char: str) -> bool:
+    """
+    Check if a Unicode character is invisible/whitespace using Unicode properties.
+    
+    Args:
+        char: Single Unicode character to check
+    
+    Returns:
+        True if the character is invisible (space separator, control, line/paragraph separator)
+    
+    Note:
+        Uses unicodedata.category() to check character properties:
+        - 'Zs' = Space separator (space, non-breaking space, etc.)
+        - 'Cc' = Control character (tab, newline, null, etc.)
+        - 'Zl' = Line separator
+        - 'Zp' = Paragraph separator
+    """
+    category = unicodedata.category(char)
+    return category in ('Zs', 'Cc', 'Zl', 'Zp')
+
+
+def _get_char_display_name(char: str) -> str:
+    """
+    Get the Unicode name for a character, with fallback for unnamed characters.
+    
+    Args:
+        char: Single Unicode character
+    
+    Returns:
+        Unicode character name (e.g., "SPACE", "LATIN SMALL LETTER A")
+    
+    Note:
+        Control characters (0x00-0x1F) don't have names in the Unicode database,
+        so we use the CONTROL_CHAR_NAMES list as a fallback for those.
+    """
+    code_point = ord(char)
+    # Control characters (0x00-0x1F) don't have Unicode names, use our list
+    if code_point < 0x20:
+        return CONTROL_CHAR_NAMES[code_point]
+    return unicodedata.name(char, 'UNKNOWN')
+
+
+def _format_display_value(value: str, codepage: int) -> str:
+    """
+    Format a value from CTYINFO/YESNO for display in HTML summary section.
+    
+    Handles escaped byte sequences (like \\xE0) by converting to Unicode using
+    the codepage, then checks if the resulting Unicode character is invisible
+    using Unicode properties. Invisible characters are replaced with their names.
+    
+    Args:
+        value: String value which may contain escaped sequences like \\xE0
+        codepage: Codepage number for byte-to-character conversion
+    
+    Returns:
+        HTML-safe string with invisible characters replaced by names
+    
+    Examples:
+        - "\\xA0" with CP437 → "á" (visible, HTML entity)
+        - "\\xA0" with CP1252 → "NO-BREAK SPACE" (invisible, shows name)
+        - " " (space) → "SPACE"
+        - "." (period) → "."
+        - "$" → "$"
+    
+    Note:
+        The invisibility check is done on the Unicode character AFTER codepage
+        conversion, not on the original byte value. This is important because
+        the same byte can map to different characters in different codepages:
+        - 0xA0 in CP437 → 'á' (visible)
+        - 0xA0 in CP1252 → '\xa0' (non-breaking space, invisible)
+    """
+    if not value or value == "<unspecified>":
+        return value
+    
+    result_parts = []
+    i = 0
+    
+    while i < len(value):
+        # Check for escaped sequence like \xE0
+        if value[i:i+2] == '\\x' and i + 4 <= len(value):
+            hex_chars = value[i+2:i+4]
+            try:
+                byte_val = int(hex_chars, 16)
+                # Convert byte to character using codepage
+                char = codepage_byte_to_unicode(byte_val, codepage)
+                
+                # Check if the Unicode character is invisible AFTER conversion
+                if _is_invisible_char(char):
+                    result_parts.append(_get_char_display_name(char))
+                else:
+                    # Visible character - use HTML entity
+                    result_parts.append(_char_to_html_entity(char))
+                i += 4
+                continue
+            except ValueError:
+                pass  # Not a valid hex escape, treat as literal
+        
+        # Regular character
+        char = value[i]
+        
+        # Check if the Unicode character is invisible
+        if _is_invisible_char(char):
+            result_parts.append(_get_char_display_name(char))
+        else:
+            # Visible character - use HTML entity
+            result_parts.append(_char_to_html_entity(char))
+        
+        i += 1
+    
+    return ''.join(result_parts)
+
+
 def generate_html_file(entry: CountryEntry, output_dir: str) -> Tuple[int, str, int, str]:
     """
     Generate an HTML file for a country/codepage entry.
@@ -2051,23 +2163,35 @@ document.addEventListener('DOMContentLoaded', function() {
         parts.append('<table class="summary-table">')
         parts.append('<tr><th>Property</th><th>Value</th></tr>')
         
+        # Fields that need formatting with _format_display_value
+        currency_symbol = _format_display_value(str(ctyinfo.get('currency_symbol', 'N/A')), codepage)
+        thousands_sep = _format_display_value(str(ctyinfo.get('thousands_sep', 'N/A')), codepage)
+        decimal_sep = _format_display_value(str(ctyinfo.get('decimal_sep', 'N/A')), codepage)
+        date_sep = _format_display_value(str(ctyinfo.get('date_sep', 'N/A')), codepage)
+        time_sep = _format_display_value(str(ctyinfo.get('time_sep', 'N/A')), codepage)
+        data_sep = _format_display_value(str(ctyinfo.get('data_sep', 'N/A')), codepage)
+        
         info_fields = [
-            ('Country ID', ctyinfo.get('country_id', 'N/A')),
-            ('Codepage', ctyinfo.get('codepage', 'N/A')),
-            ('Date Format', f"{ctyinfo.get('date_format', 'N/A')} ({ctyinfo.get('date_format_name', '')})"),
-            ('Time Format', f"{ctyinfo.get('time_format', 'N/A')} ({ctyinfo.get('time_format_name', '')})"),
-            ('Currency Symbol', ctyinfo.get('currency_symbol', 'N/A')),
-            ('Currency Format', ctyinfo.get('currency_format', 'N/A')),
-            ('Currency Decimals', ctyinfo.get('currency_decimals', 'N/A')),
-            ('Thousands Separator', ctyinfo.get('thousands_sep', 'N/A')),
-            ('Decimal Separator', ctyinfo.get('decimal_sep', 'N/A')),
-            ('Date Separator', ctyinfo.get('date_sep', 'N/A')),
-            ('Time Separator', ctyinfo.get('time_sep', 'N/A')),
-            ('Data Separator', ctyinfo.get('data_sep', 'N/A')),
+            ('Country ID', str(ctyinfo.get('country_id', 'N/A')), False),
+            ('Codepage', str(ctyinfo.get('codepage', 'N/A')), False),
+            ('Date Format', f"{ctyinfo.get('date_format', 'N/A')} ({ctyinfo.get('date_format_name', '')})", False),
+            ('Time Format', f"{ctyinfo.get('time_format', 'N/A')} ({ctyinfo.get('time_format_name', '')})", False),
+            ('Currency Symbol', currency_symbol, True),
+            ('Currency Format', str(ctyinfo.get('currency_format', 'N/A')), False),
+            ('Currency Decimals', str(ctyinfo.get('currency_decimals', 'N/A')), False),
+            ('Thousands Separator', thousands_sep, True),
+            ('Decimal Separator', decimal_sep, True),
+            ('Date Separator', date_sep, True),
+            ('Time Separator', time_sep, True),
+            ('Data Separator', data_sep, True),
         ]
         
-        for label, value in info_fields:
-            parts.append(f'<tr><th>{html.escape(label)}</th><td>{html.escape(str(value))}</td></tr>')
+        for label, value, is_preformatted in info_fields:
+            if is_preformatted:
+                # Value is already HTML-safe from _format_display_value
+                parts.append(f'<tr><th>{html.escape(label)}</th><td>{value}</td></tr>')
+            else:
+                parts.append(f'<tr><th>{html.escape(label)}</th><td>{html.escape(value)}</td></tr>')
         
         parts.append('</table>')
     else:
@@ -2077,8 +2201,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if yesno:
         parts.append('<h3>Yes/No Characters (YESNO)</h3>')
         parts.append('<table class="summary-table">')
-        parts.append(f'<tr><th>Yes</th><td>{html.escape(yesno.get("yes", "N/A"))}</td></tr>')
-        parts.append(f'<tr><th>No</th><td>{html.escape(yesno.get("no", "N/A"))}</td></tr>')
+        yes_val = _format_display_value(str(yesno.get("yes", "N/A")), codepage)
+        no_val = _format_display_value(str(yesno.get("no", "N/A")), codepage)
+        parts.append(f'<tr><th>Yes</th><td>{yes_val}</td></tr>')
+        parts.append(f'<tr><th>No</th><td>{no_val}</td></tr>')
         parts.append('</table>')
     
     parts.append('</div>')
