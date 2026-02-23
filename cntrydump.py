@@ -1880,7 +1880,7 @@ def generate_html_file(entry: CountryEntry, output_dir: str) -> Tuple[int, str, 
     )
     
     # Write file
-    with open(filepath, 'w', encoding='utf-8') as f:
+    with open(filepath, 'w', encoding='utf-8', newline='\r\n') as f:
         f.write(html_content)
     
     return (country_code, country_name, codepage, filename)
@@ -2156,12 +2156,12 @@ document.addEventListener('DOMContentLoaded', function() {
 ''']
 
     # Summary section
-    parts.append('<div class="section">')
-    parts.append('<h2>Country Information (CTYINFO)</h2>')
+    parts.append('    <div class="section">\n')
+    parts.append('    <h2>Country Information (CTYINFO)</h2>\n')
     
     if ctyinfo:
-        parts.append('<table class="summary-table">')
-        parts.append('<tr><th>Property</th><th>Value</th></tr>')
+        parts.append('    <table class="summary-table">\n')
+        parts.append('    <tr><th>Property</th><th>Value</th></tr>\n')
         
         # Fields that need formatting with _format_display_value
         currency_symbol = _format_display_value(str(ctyinfo.get('currency_symbol', 'N/A')), codepage)
@@ -2189,40 +2189,40 @@ document.addEventListener('DOMContentLoaded', function() {
         for label, value, is_preformatted in info_fields:
             if is_preformatted:
                 # Value is already HTML-safe from _format_display_value
-                parts.append(f'<tr><th>{html.escape(label)}</th><td>{value}</td></tr>')
+                parts.append(f'    <tr><th>{html.escape(label)}</th><td>{value}</td></tr>\n')
             else:
-                parts.append(f'<tr><th>{html.escape(label)}</th><td>{html.escape(value)}</td></tr>')
+                parts.append(f'    <tr><th>{html.escape(label)}</th><td>{html.escape(value)}</td></tr>\n')
         
-        parts.append('</table>')
+        parts.append('    </table>\n')
     else:
-        parts.append('<p><em>No CTYINFO data available</em></p>')
+        parts.append('    <p><em>No CTYINFO data available</em></p>\n')
     
     # YESNO
     if yesno:
-        parts.append('<h3>Yes/No Characters (YESNO)</h3>')
-        parts.append('<table class="summary-table">')
+        parts.append('    <h3>Yes/No Characters (YESNO)</h3>\n')
+        parts.append('    <table class="summary-table">\n')
         yes_val = _format_display_value(str(yesno.get("yes", "N/A")), codepage)
         no_val = _format_display_value(str(yesno.get("no", "N/A")), codepage)
-        parts.append(f'<tr><th>Yes</th><td>{yes_val}</td></tr>')
-        parts.append(f'<tr><th>No</th><td>{no_val}</td></tr>')
-        parts.append('</table>')
+        parts.append(f'    <tr><th>Yes</th><td>{yes_val}</td></tr>\n')
+        parts.append(f'    <tr><th>No</th><td>{no_val}</td></tr>\n')
+        parts.append('    </table>\n')
     
-    parts.append('</div>')
+    parts.append('    </div>\n')
 
     # Codepage table in codepoint order (16x16 grid)
-    parts.append('<div class="section">')
-    parts.append('<h2>Codepage Character Map (Codepoint Order)</h2>')
-    parts.append('<p>16×16 grid showing all 256 byte values (0x00-0xFF)</p>')
+    parts.append('    <div class="section">\n')
+    parts.append('    <h2>Codepage Character Map (Codepoint Order)</h2>\n')
+    parts.append('    <p>16×16 grid showing all 256 byte values (0x00-0xFF)</p>\n')
     
-    parts.append('<div class="grid-16x16">')
+    parts.append('    <div class="grid-16x16">\n')
     # Header row
-    parts.append('<div class="header"></div>')
+    parts.append('    <div class="header"></div>\n')
     for col in range(16):
-        parts.append(f'<div class="header">_{col:X}</div>')
+        parts.append(f'    <div class="header">_{col:X}</div>\n')
     
     # Data rows
     for row in range(16):
-        parts.append(f'<div class="row-header">{row:X}_</div>')
+        parts.append(f'    <div class="row-header">{row:X}_</div>\n')
         for col in range(16):
             byte_val = row * 16 + col
             char_name = get_char_name(byte_val, codepage)
@@ -2230,30 +2230,30 @@ document.addEventListener('DOMContentLoaded', function() {
             if byte_val < 0x20:
                 glyph = get_control_char_glyph(byte_val)
                 glyph_html = _glyph_to_html_entity(glyph)
-                parts.append(f'<div class="control-char" title="{html.escape(tooltip)}">{glyph_html}</div>')
+                parts.append(f'    <div class="control-char" title="{html.escape(tooltip)}">{glyph_html}</div>\n')
             elif byte_val == 0x7F:
-                parts.append(f'<div class="control-char" title="{html.escape(tooltip)}">&#9249;</div>')
+                parts.append(f'    <div class="control-char" title="{html.escape(tooltip)}">&#9249;</div>\n')
             else:
                 char = codepage_byte_to_unicode(byte_val, codepage)
                 char_html = _char_to_html_entity(char)
-                parts.append(f'<div class="glyph" title="{html.escape(tooltip)}">{char_html}</div>')
+                parts.append(f'    <div class="glyph" title="{html.escape(tooltip)}">{char_html}</div>\n')
     
-    parts.append('</div>')
-    parts.append('</div>')
+    parts.append('    </div>\n')
+    parts.append('    </div>\n')
 
     # Collation order table
     if collate_payload and len(collate_payload) == 256:
-        parts.append('<div class="section">')
-        parts.append('<h2>Codepage in Collation Order</h2>')
-        parts.append('<p>Characters sorted by their collation weight (sort order)</p>')
+        parts.append('    <div class="section">\n')
+        parts.append('    <h2>Codepage in Collation Order</h2>\n')
+        parts.append('    <p>Characters sorted by their collation weight (sort order)</p>\n')
         
         # Build list of (byte_value, collation_weight)
         collation_order = [(i, collate_payload[i]) for i in range(256)]
         # Sort by collation weight, then by byte value for stability
         collation_order.sort(key=lambda x: (x[1], x[0]))
         
-        parts.append('<table class="codepage-grid">')
-        parts.append('<tr><th>Weight</th><th>Dec</th><th>Hex</th><th>Glyph</th><th>Character Name</th></tr>')
+        parts.append('    <table class="codepage-grid">\n')
+        parts.append('    <tr><th>Weight</th><th>Dec</th><th>Hex</th><th>Glyph</th><th>Character Name</th></tr>\n')
         
         for byte_val, weight in collation_order:
             if byte_val < 0x20:
@@ -2269,22 +2269,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 glyph_class = 'glyph'
             
             char_name = get_char_name(byte_val, codepage)
-            parts.append(f'<tr><td>{weight}</td><td>{byte_val}</td><td>{byte_val:02X}</td>'
+            parts.append(f'    <tr><td>{weight}</td><td>{byte_val}</td><td>{byte_val:02X}</td>'
                         f'<td class="{glyph_class}">{glyph_html}</td>'
-                        f'<td class="char-name">{html.escape(char_name)}</td></tr>')
+                        f'<td class="char-name">{html.escape(char_name)}</td></tr>\n')
         
-        parts.append('</table>')
-        parts.append('</div>')
+        parts.append('    </table>\n')
+        parts.append('    </div>\n')
 
     # UCASE mappings table
     if ucase_payload and len(ucase_payload) >= 128:
-        parts.append('<div class="section">')
-        parts.append('<h2>Uppercase Mappings (UCASE)</h2>')
-        parts.append('<p>Maps characters 0x80-0xFF to their uppercase equivalents</p>')
+        parts.append('    <div class="section">\n')
+        parts.append('    <h2>Uppercase Mappings (UCASE)</h2>\n')
+        parts.append('    <p>Maps characters 0x80-0xFF to their uppercase equivalents</p>\n')
         
-        parts.append('<table class="char-table ucase-table">')
-        parts.append('<tr><th>From (Dec)</th><th>From (Hex)</th><th>Lowercase</th>'
-                    '<th></th><th>Uppercase</th><th>To (Hex)</th><th>To (Dec)</th></tr>')
+        parts.append('    <table class="char-table ucase-table">\n')
+        parts.append('    <tr><th>From (Dec)</th><th>From (Hex)</th><th>Lowercase</th>'
+                    '<th></th><th>Uppercase</th><th>To (Hex)</th><th>To (Dec)</th></tr>\n')
         
         for i, upper_byte in enumerate(ucase_payload[:128]):
             lower_byte = 0x80 + i
@@ -2295,18 +2295,18 @@ document.addEventListener('DOMContentLoaded', function() {
             if lower_byte != upper_byte:
                 lower_html = _char_to_html_entity(lower_char)
                 upper_html = _char_to_html_entity(upper_char)
-                parts.append(f'<tr>'
-                            f'<td>{lower_byte}</td>'
-                            f'<td>{lower_byte:02X}</td>'
-                            f'<td class="glyph">{lower_html}</td>'
-                            f'<td class="arrow">&rarr;</td>'
-                            f'<td class="glyph">{upper_html}</td>'
-                            f'<td>{upper_byte:02X}</td>'
-                            f'<td>{upper_byte}</td>'
-                            f'</tr>')
+                parts.append(f'    <tr>\n'
+                            f'        <td>{lower_byte}</td>\n'
+                            f'        <td>{lower_byte:02X}</td>\n'
+                            f'        <td class="glyph">{lower_html}</td>\n'
+                            f'        <td class="arrow">&rarr;</td>\n'
+                            f'        <td class="glyph">{upper_html}</td>\n'
+                            f'        <td>{upper_byte:02X}</td>\n'
+                            f'        <td>{upper_byte}</td>\n'
+                            f'    </tr>\n')
         
-        parts.append('</table>')
-        parts.append('</div>')
+        parts.append('    </table>\n')
+        parts.append('    </div>\n')
 
     # Footer
     parts.append(f'''
