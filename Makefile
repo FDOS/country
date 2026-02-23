@@ -5,7 +5,7 @@ production: country.sys
 	$(CP) country.sys ..$(DIRSEP)bin
 
 country.sys: country.asm
-	nasm -o $@ -l $(basename $<).lst country.asm
+	nasm -o $@ -l country.lst country.asm
 
 clean:
 	$(RM) country.sys
