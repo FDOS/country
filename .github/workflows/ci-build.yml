@@ -35,8 +35,8 @@ jobs:
         ./ci_validate.py
 
     - name: Upload binary artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
-        name: country.sys
+        name: country
         path: country.sys
         retention-days: 30
